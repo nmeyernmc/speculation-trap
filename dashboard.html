@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Speculation Trap — Interactive Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f1117;
+            color: #e0e0e0;
+            line-height: 1.5;
+        }
+        .dashboard { max-width: 1400px; margin: 0 auto; padding: 24px; }
+        header { margin-bottom: 28px; }
+        header h1 { font-size: 26px; font-weight: 700; color: #fff; }
+        header p { font-size: 13px; color: #888; margin-top: 4px; max-width: 800px; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+        .kpi-card { background: #1a1d27; border-radius: 12px; padding: 20px; border: 1px solid #262a36; }
+        .kpi-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .kpi-value { font-size: 30px; font-weight: 700; }
+        .kpi-sub { font-size: 11px; color: #666; margin-top: 4px; }
+        .kpi-bad { color: #ef4444; }
+        .kpi-warn { color: #f59e0b; }
+        .kpi-good { color: #22c55e; }
+        .kpi-info { color: #3b82f6; }
+        .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+        .chart-card { background: #1a1d27; border-radius: 12px; padding: 20px; border: 1px solid #262a36; }
+        .chart-card.full-width { grid-column: 1 / -1; }
+        .chart-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+        .chart-subtitle { font-size: 12px; color: #666; margin-bottom: 16px; }
+        .chart-container { position: relative; width: 100%; }
+        .table-section { background: #1a1d27; border-radius: 12px; padding: 20px; border: 1px solid #262a36; margin-top: 16px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 10px 14px; border-bottom: 2px solid #333; color: #888; font-weight: 600; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; white-space: nowrap; }
+        td { padding: 10px 14px; border-bottom: 1px solid #1f2230; }
+        tr:hover td { background: #1f2230; }
+        .cell-bad { color: #ef4444; font-weight: 600; }
+        .cell-good { color: #22c55e; font-weight: 600; }
+        .cell-warn { color: #f59e0b; font-weight: 600; }
+        .cell-neutral { color: #94a3b8; }
+        .insight-box { background: linear-gradient(135deg, #1e2540, #1a1d27); border-left: 3px solid #3b82f6; border-radius: 0 12px 12px 0; padding: 16px 20px; margin-top: 16px; font-size: 13px; color: #a0b0cc; }
+        .insight-box strong { color: #fff; }
+        .insight-box.danger { border-left-color: #ef4444; }
+        .insight-box.amber { border-left-color: #f59e0b; }
+        .tab-nav { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid #262a36; overflow-x: auto; }
+        .tab-btn { padding: 10px 18px; border: none; background: none; color: #666; font-size: 13px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn.active { color: #fff; border-bottom-color: #2563eb; }
+        .tab-btn:hover:not(.active) { color: #aaa; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .persona-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-top: 16px; }
+        .persona-card { background: #1a1d27; border-radius: 12px; padding: 20px; border: 1px solid #262a36; }
+        .persona-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid; }
+        .persona-card .stat-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; }
+        .persona-card .stat-label { color: #888; }
+        .persona-card .stat-value { color: #e0e0e0; font-weight: 500; }
+        .conf-tag { display: inline-block; font-size: 10px; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-left: 6px; vertical-align: middle; }
+        .conf-high { background: rgba(34,197,94,0.15); color: #22c55e; }
+        .conf-med { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .conf-low { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .cycle-diagram { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0; padding: 30px 0; }
+        .cycle-step { background: #1e2230; border-radius: 10px; padding: 14px 18px; font-size: 13px; font-weight: 600; text-align: center; min-width: 150px; border: 1px solid #333; }
+        .cycle-arrow { font-size: 24px; color: #ef4444; padding: 0 8px; }
+        .sources { margin-top: 32px; padding-top: 16px; border-top: 1px solid #262a36; font-size: 11px; color: #555; line-height: 1.8; }
+        .sources a { color: #3b82f6; text-decoration: none; }
+        .sources a:hover { text-decoration: underline; }
+        @media (max-width: 900px) {
+            .kpis { grid-template-columns: repeat(2, 1fr); }
+            .charts-row { grid-template-columns: 1fr; }
+            .persona-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 600px) {
+            .kpis { grid-template-columns: 1fr; }
+            .persona-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <header style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+            <h1>The Speculation Trap</h1>
+            <p>How economic despair is driving a generation of young men from traditional investing into crypto, sports betting, and prediction markets — and the financial damage it's causing. Compiled from academic research, regulatory data, and industry reports.</p>
+        </div>
+        <a href="index.html" style="flex-shrink:0;margin-left:24px;font-size:11px;color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:6px 16px;border-radius:20px;text-decoration:none;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;transition:all 0.3s" onmouseover="this.style.background='rgba(239,68,68,0.15)'" onmouseout="this.style.background='transparent'">← Story View</a>
+    </header>
+
+    <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchTab('crisis')">The Economic Crisis</button>
+        <button class="tab-btn" onclick="switchTab('losses')">The Losses</button>
+        <button class="tab-btn" onclick="switchTab('displacement')">The Displacement</button>
+        <button class="tab-btn" onclick="switchTab('demographics')">Who's Affected</button>
+        <button class="tab-btn" onclick="switchTab('comparison')">Full Comparison</button>
+        <button class="tab-btn" onclick="switchTab('growth')">Market Growth</button>
+    </div>
+
+    <!-- ====== THE ECONOMIC CRISIS ====== -->
+    <div id="tab-crisis" class="tab-content active">
+        <div class="kpis">
+            <div class="kpi-card">
+                <div class="kpi-label">Home Price ÷ Income Ratio</div>
+                <div class="kpi-value kpi-bad">5.0x</div>
+                <div class="kpi-sub">Near historic high — was 3.0x (affordable) in 2000. Source: Harvard JCHS</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Median First-Time Buyer Age</div>
+                <div class="kpi-value kpi-warn">40 yrs</div>
+                <div class="kpi-sub">Was 29 in 1981. Record high in 2025. Source: NAR</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Student Loan Debt (National)</div>
+                <div class="kpi-value kpi-bad">$1.7T</div>
+                <div class="kpi-sub">42.7M borrowers. Tripled since 2007. Source: Fed</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Gen Z Avg Monthly Loan Payment</div>
+                <div class="kpi-value kpi-warn">$526</div>
+                <div class="kpi-sub">vs. $284 national average. Source: Empower</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Home Prices vs. Income: The Growing Gap</div>
+                <div class="chart-subtitle">Indexed to 2000 = 100. Home prices have outpaced income by 2:1 (NAHB/Harvard JCHS)</div>
+                <div class="chart-container"><canvas id="housingGapChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">% of Households Who Can Afford Median Home</div>
+                <div class="chart-subtitle">By income bracket — most Americans are priced out (NAHB, 2025)</div>
+                <div class="chart-container"><canvas id="affordabilityChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card full-width">
+                <div class="chart-title">The Financial Nihilism Mindset</div>
+                <div class="chart-subtitle">Survey data on how young adults view traditional vs. speculative paths</div>
+                <div class="chart-container"><canvas id="nihilismChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="insight-box danger">
+            <strong>The Setup:</strong> When housing costs 5x income, student debt averages $40K, and real wages are stagnant, the traditional wealth-building path (save → invest → buy home → build equity) breaks down. 72% of investors aged 21–43 say above-average returns aren't possible through traditional means. A Columbia Business School professor called the resulting shift to speculation "a rational response." The platforms are ready and waiting.
+        </div>
+    </div>
+
+    <!-- ====== THE LOSSES ====== -->
+    <div id="tab-losses" class="tab-content">
+        <div class="kpis">
+            <div class="kpi-card">
+                <div class="kpi-label">Crypto — % Who Lose <span class="conf-tag conf-high">BIS</span></div>
+                <div class="kpi-value kpi-bad">73–81%</div>
+                <div class="kpi-sub">Median loss: 48% of invested capital</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Sports Betting — % Who Lose <span class="conf-tag conf-high">UCSD</span></div>
+                <div class="kpi-value kpi-bad">96%</div>
+                <div class="kpi-sub">717K consumers tracked over 5 years</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Pred. Mkts — Avg Taker Loss <span class="conf-tag conf-high">CEPR</span></div>
+                <div class="kpi-value kpi-warn">-32%</div>
+                <div class="kpi-sub">300K+ Kalshi contracts analyzed</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">S&P 500 — Avg Annual Return <span class="conf-tag conf-high">Verified</span></div>
+                <div class="kpi-value kpi-good">+10.4%</div>
+                <div class="kpi-sub">Since 1957, ~0% loss over any 20yr period</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Loss Rates by Category</div>
+                <div class="chart-subtitle">% of participants who lose money — data sources in brackets</div>
+                <div class="chart-container"><canvas id="lossRateChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Winner Concentration: Who Actually Profits?</div>
+                <div class="chart-subtitle">% of total gains captured by top participants</div>
+                <div class="chart-container"><canvas id="winnerChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Median Outcome by Category</div>
+                <div class="chart-subtitle">What the typical participant earns or loses</div>
+                <div class="chart-container"><canvas id="medianChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">The Cost of the "Edge": Platform Take Rates</div>
+                <div class="chart-subtitle">What the house keeps on every dollar</div>
+                <div class="chart-container"><canvas id="houseEdgeChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card full-width">
+                <div class="chart-title">$10,000 Over 20 Years: Index Fund vs. Speculative Categories</div>
+                <div class="chart-subtitle">Modeled from median outcomes (BIS crypto loss rate, sportsbook hold rate, S&P 500 historical return)</div>
+                <div class="chart-container"><canvas id="growthChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="insight-box danger">
+            <strong>The Core Finding:</strong> Across all three speculative categories, the median participant loses money — with loss rates from 73% to 96%. A small fraction of sophisticated players (whales, sharp bettors, algorithmic traders) captures the vast majority of gains. Meanwhile, a zero-skill S&P 500 index fund — available on the same apps — delivers 10.4% annually to everyone who holds it.
+        </div>
+    </div>
+
+    <!-- ====== THE DISPLACEMENT ====== -->
+    <div id="tab-displacement" class="tab-content">
+        <div class="kpis">
+            <div class="kpi-card">
+                <div class="kpi-label">Investment Decrease When Betting Legalized</div>
+                <div class="kpi-value kpi-bad">-14%</div>
+                <div class="kpi-sub">Northwestern study (Scott Baker, 2024)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Annual Bet Increase per Household</div>
+                <div class="kpi-value kpi-warn">+$1,100</div>
+                <div class="kpi-sub">Same study — direct substitution</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">US Online Sports Bet Growth</div>
+                <div class="kpi-value kpi-bad">18x</div>
+                <div class="kpi-sub">$6.6B (2018) → $121.1B (2023)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Gen Z Stock Ownership Decline</div>
+                <div class="kpi-value kpi-warn">73% → 41%</div>
+                <div class="kpi-sub">2022 to 2024 (WEF / Coinlaw)</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Online Sports Betting Volume (US)</div>
+                <div class="chart-subtitle">Annual total wagers — 18x growth in 5 years</div>
+                <div class="chart-container"><canvas id="bettingGrowthChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Portfolio Allocation: Young vs. Older Investors</div>
+                <div class="chart-subtitle">What % of portfolio is in stocks vs. crypto (WEF 2024)</div>
+                <div class="chart-container"><canvas id="allocationChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="chart-card full-width" style="margin-bottom:16px;">
+            <div class="chart-title">The Vicious Cycle</div>
+            <div class="chart-subtitle">Self-reinforcing loop from economic distress to speculative losses</div>
+            <div class="cycle-diagram">
+                <div class="cycle-step" style="border-color:#f59e0b;">Economic Distress<br><span style="font-size:11px;color:#888;">Housing 5x income, $1.7T debt</span></div>
+                <div class="cycle-arrow">→</div>
+                <div class="cycle-step" style="border-color:#8b5cf6;">Financial Nihilism<br><span style="font-size:11px;color:#888;">72% say traditional path broken</span></div>
+                <div class="cycle-arrow">→</div>
+                <div class="cycle-step" style="border-color:#3b82f6;">Speculative Substitution<br><span style="font-size:11px;color:#888;">Crypto, betting, prediction mkts</span></div>
+                <div class="cycle-arrow">→</div>
+                <div class="cycle-step" style="border-color:#ef4444;">Losses (73–96%)<br><span style="font-size:11px;color:#888;">Median: lose half of capital</span></div>
+                <div class="cycle-arrow">→</div>
+                <div class="cycle-step" style="border-color:#ef4444;">Worse Position<br><span style="font-size:11px;color:#888;">Depleted savings, possible addiction</span></div>
+                <div class="cycle-arrow" style="color:#666;">↩ repeat</div>
+            </div>
+        </div>
+
+        <div class="insight-box amber">
+            <strong>The Displacement Evidence:</strong> This isn't diversification — it's substitution. The Northwestern study shows money flowing directly out of traditional investments and into betting when states legalize. TransUnion confirms that crypto traders, sports bettors, and meme stock investors are overwhelmingly the same people. Robinhood now offers prediction markets, NFL parlays, and stock trading on the same platform — the boundary between investing and gambling has been erased.
+        </div>
+    </div>
+
+    <!-- ====== WHO'S AFFECTED ====== -->
+    <div id="tab-demographics" class="tab-content">
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Gender Split by Category</div>
+                <div class="chart-subtitle">All three speculative categories skew heavily male</div>
+                <div class="chart-container"><canvas id="genderChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Age Distribution by Category</div>
+                <div class="chart-subtitle">Peak participation age bands</div>
+                <div class="chart-container"><canvas id="ageChart"></canvas></div>
+            </div>
+        </div>
+
+        <div style="margin-top:4px;">
+            <div class="chart-title" style="margin-bottom:4px;">The Persona: Same Person, Different Platforms</div>
+            <div class="chart-subtitle" style="margin-bottom:8px;">TransUnion confirms these populations overlap near-completely</div>
+        </div>
+
+        <div class="persona-grid">
+            <div class="persona-card">
+                <h3 style="border-color:#f59e0b;">Crypto Trader</h3>
+                <div class="stat-row"><span class="stat-label">Gender</span><span class="stat-value">62% Male</span></div>
+                <div class="stat-row"><span class="stat-label">Age</span><span class="stat-value">28–43 (Millennial)</span></div>
+                <div class="stat-row"><span class="stat-label">Income</span><span class="stat-value">$50K–$100K</span></div>
+                <div class="stat-row"><span class="stat-label">Motivation</span><span class="stat-value">"Wealth building"</span></div>
+                <div class="stat-row"><span class="stat-label">Info Source</span><span class="stat-value">Social media</span></div>
+                <div class="stat-row"><span class="stat-label">Loss Rate</span><span class="stat-value cell-bad">73–81% (BIS)</span></div>
+            </div>
+            <div class="persona-card">
+                <h3 style="border-color:#ef4444;">Sports Bettor</h3>
+                <div class="stat-row"><span class="stat-label">Gender</span><span class="stat-value">72% Male</span></div>
+                <div class="stat-row"><span class="stat-label">Age</span><span class="stat-value">25–34</span></div>
+                <div class="stat-row"><span class="stat-label">Avg Spend</span><span class="stat-value">$1,934/yr</span></div>
+                <div class="stat-row"><span class="stat-label">Motivation</span><span class="stat-value">Thrill / "investment"</span></div>
+                <div class="stat-row"><span class="stat-label">Fav Bet</span><span class="stat-value">Parlays (highest margin)</span></div>
+                <div class="stat-row"><span class="stat-label">Loss Rate</span><span class="stat-value cell-bad">96% (UCSD)</span></div>
+            </div>
+            <div class="persona-card">
+                <h3 style="border-color:#8b5cf6;">Prediction Mkt Trader</h3>
+                <div class="stat-row"><span class="stat-label">Gender</span><span class="stat-value">~75% Male (est.)</span></div>
+                <div class="stat-row"><span class="stat-label">Age</span><span class="stat-value">18–26</span></div>
+                <div class="stat-row"><span class="stat-label">Background</span><span class="stat-value">Crypto / finance</span></div>
+                <div class="stat-row"><span class="stat-label">Motivation</span><span class="stat-value">Edge / speculation</span></div>
+                <div class="stat-row"><span class="stat-label">Market Vol</span><span class="stat-value">~$38–44B (2025)</span></div>
+                <div class="stat-row"><span class="stat-label">Taker Loss</span><span class="stat-value cell-warn">-32% avg (CEPR)</span></div>
+            </div>
+            <div class="persona-card">
+                <h3 style="border-color:#22c55e;">Index Fund Investor</h3>
+                <div class="stat-row"><span class="stat-label">Gender</span><span class="stat-value">~55% Male</span></div>
+                <div class="stat-row"><span class="stat-label">Age</span><span class="stat-value">All ages</span></div>
+                <div class="stat-row"><span class="stat-label">Income</span><span class="stat-value">All levels</span></div>
+                <div class="stat-row"><span class="stat-label">Strategy</span><span class="stat-value">Buy and hold</span></div>
+                <div class="stat-row"><span class="stat-label">Expense Ratio</span><span class="stat-value">0.03%</span></div>
+                <div class="stat-row"><span class="stat-label">20yr Return</span><span class="stat-value cell-good">+11.9%/yr</span></div>
+            </div>
+        </div>
+
+        <div class="insight-box" style="margin-top:16px;">
+            <strong>The Overlap:</strong> The BIS found 40%+ of new crypto users are men under 35. Sports betting is 72% male, peak age 25–34. Prediction markets skew youngest of all (18–26). These aren't three different populations — TransUnion confirms they're largely the same people rotating between platforms. They're also the generation most affected by housing unaffordability and student debt.
+        </div>
+    </div>
+
+    <!-- ====== FULL COMPARISON ====== -->
+    <div id="tab-comparison" class="tab-content">
+        <div class="table-section">
+            <div class="chart-title" style="margin-bottom:16px;">Complete Side-by-Side Comparison</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Metric</th>
+                        <th>Crypto Trading</th>
+                        <th>Sports Betting</th>
+                        <th>Prediction Markets</th>
+                        <th>S&P 500 Index</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>% Who Lose Money</td><td class="cell-bad">73–81% (BIS)</td><td class="cell-bad">96% (UCSD)</td><td class="cell-warn">Takers: -32% avg (CEPR)</td><td class="cell-good">~0% over 20yr</td></tr>
+                    <tr><td>Median Outcome</td><td class="cell-bad">-48% of capital</td><td class="cell-bad">Net negative (8–9% hold)</td><td class="cell-warn">-32% for takers</td><td class="cell-good">+10.4%/yr</td></tr>
+                    <tr><td>Winner Concentration</td><td class="cell-warn">Whales exit before crashes</td><td class="cell-bad">1.3% win 91% (DFS, 2015)</td><td class="cell-warn">Sharp traders dominate</td><td class="cell-good">Broad-based</td></tr>
+                    <tr><td>Platform Take Rate</td><td class="cell-warn">Fees + spread per trade</td><td class="cell-bad">8–9% of all wagers</td><td class="cell-warn">Spread per contract</td><td class="cell-good">0.03%/yr</td></tr>
+                    <tr><td>Revenue from Addicted Users</td><td class="cell-neutral">Unknown</td><td class="cell-bad">51% from ~2% (CT DMHAS)</td><td class="cell-neutral">Unknown</td><td class="cell-neutral">N/A</td></tr>
+                    <tr><td>Typical User</td><td class="cell-neutral">Male, 28–35</td><td class="cell-neutral">Male, 25–34</td><td class="cell-neutral">Male, 18–26 (approx.)</td><td class="cell-neutral">All demographics</td></tr>
+                    <tr><td>Addictive Design</td><td class="cell-bad">Yes (24/7, FOMO)</td><td class="cell-bad">Yes (parlays, live)</td><td class="cell-bad">Yes (event-driven)</td><td class="cell-good">No</td></tr>
+                    <tr><td>Expected Value (Median)</td><td class="cell-bad">Negative</td><td class="cell-bad">Negative</td><td class="cell-bad">Negative (takers)</td><td class="cell-good">Positive</td></tr>
+                    <tr><td>Called "Investing" By Users</td><td class="cell-warn">46% (Millennials)</td><td class="cell-warn">24% (Gen Z)</td><td class="cell-neutral">Framed as "trading"</td><td class="cell-good">Actual investing</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="charts-row" style="margin-top:16px;">
+            <div class="chart-card full-width">
+                <div class="chart-title">Gambling-Like Characteristics: Radar Comparison</div>
+                <div class="chart-subtitle">Scoring each category on structural gambling traits (0–10 scale)</div>
+                <div class="chart-container"><canvas id="radarChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="insight-box danger">
+            <strong>The Bottom Line:</strong> All three speculative categories share the same structural DNA as gambling: negative expected value, extreme winner concentration, addictive product design, and targeting of economically vulnerable young men. The only category that consistently delivers positive outcomes for ordinary participants is passive index fund investing — which requires no skill, no 24/7 engagement, and costs 0.03% per year. The cruelest irony: the index fund is available on the same app as the speculation.
+        </div>
+    </div>
+
+    <!-- ====== MARKET GROWTH ====== -->
+    <div id="tab-growth" class="tab-content">
+        <div class="kpis">
+            <div class="kpi-card">
+                <div class="kpi-label">Sports Betting Handle Growth (2019–2025)</div>
+                <div class="kpi-value kpi-bad">~12x</div>
+                <div class="kpi-sub">$13B → ~$165B in total wagers</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Prediction Market Volume Growth</div>
+                <div class="kpi-value kpi-bad">~440x</div>
+                <div class="kpi-sub">~$100M → ~$44B (2019–2025 est.)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Crypto Exchange Volume Growth</div>
+                <div class="kpi-value kpi-warn">~6x</div>
+                <div class="kpi-sub">$3T → ~$18.7T annual (CoinGecko/CCData)</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Retail Stock Inflows (2024–2025)</div>
+                <div class="kpi-value kpi-good">+53%</div>
+                <div class="kpi-sub">$197B → $302B — but from a lower base among young men</div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card full-width">
+                <div class="chart-title">Where the Money Flowed: 2019–2025</div>
+                <div class="chart-subtitle">Indexed to 2019 = 100. Shows relative growth of speculative markets vs. retail stock investment. Prediction markets and sports betting have exploded; retail equity inflows grew modestly.</div>
+                <div class="chart-container" style="height:420px;"><canvas id="marketGrowthChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="charts-row">
+            <div class="chart-card">
+                <div class="chart-title">Absolute Volume by Category ($B)</div>
+                <div class="chart-subtitle">Annual market volume — note the different scales. Crypto dwarfs all others in absolute terms.</div>
+                <div class="chart-container"><canvas id="absoluteVolumeChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+                <div class="chart-title">Young Male Dollar Allocation Shift</div>
+                <div class="chart-subtitle">Estimated annual spend per participant (18–35 males), showing the substitution effect</div>
+                <div class="chart-container"><canvas id="allocationShiftChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="table-section">
+            <div class="chart-title" style="margin-bottom:16px;">Market Volume Time Series (2019–2025)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Year</th>
+                        <th>Sports Betting Handle ($B)</th>
+                        <th>Prediction Markets ($B)</th>
+                        <th>Crypto Exchange Vol ($T)</th>
+                        <th>Retail Stock Inflows ($B)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>2019</td><td>13</td><td>~0.1</td><td>~3.0</td><td class="cell-neutral">~50 (est.)</td></tr>
+                    <tr><td>2020</td><td>21.5</td><td>~0.3</td><td>~5.0</td><td class="cell-good">~100 (pandemic boom)</td></tr>
+                    <tr><td>2021</td><td>52.6</td><td>~0.5</td><td>~14.0</td><td class="cell-good">~180 (meme stock era)</td></tr>
+                    <tr><td>2022</td><td>93.2</td><td>~1.0</td><td>~8.0</td><td class="cell-neutral">~100 (crypto winter)</td></tr>
+                    <tr><td>2023</td><td>121.1</td><td>~3.5</td><td>~10.0</td><td class="cell-neutral">~130</td></tr>
+                    <tr><td>2024</td><td>~150</td><td>~11</td><td>~18.4</td><td class="cell-good">~197 (JPMorgan/Vanda)</td></tr>
+                    <tr><td>2025 (proj.)</td><td class="cell-bad">~165</td><td class="cell-bad">~44</td><td class="cell-warn">~18.7</td><td class="cell-good">~302 (JPMorgan)</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="insight-box danger" style="margin-top:16px;">
+            <strong>The Growth Story:</strong> The speculative markets haven't just grown — they've exploded at rates that dwarf any increase in traditional retail investing. Sports betting handle grew 12x, prediction markets grew ~440x from near-zero, and crypto exchange volume hit 6x. Meanwhile, retail stock inflows roughly tripled — but much of that recovery came post-2023 and skews older. For men 18–35 specifically, the Northwestern study shows that every dollar flowing into betting comes directly out of investment accounts. The platforms grew; the investors didn't.
+        </div>
+    </div>
+
+    <div class="sources">
+        <strong>Sources:</strong>
+        <a href="https://www.bis.org/publ/bisbull69.pdf">BIS Bulletin 69</a> ·
+        <a href="https://www.bis.org/publ/work1049.htm">BIS WP 1049</a> ·
+        <a href="https://today.ucsd.edu/story/study-reveals-surge-in-gambling-addiction-following-legalization-of-sports-betting">UC San Diego</a> ·
+        <a href="https://cepr.org/voxeu/columns/economics-kalshi-prediction-market">CEPR/Kalshi</a> ·
+        <a href="https://www.jchs.harvard.edu/blog/home-prices-surge-five-times-median-income-nearing-historic-highs">Harvard JCHS</a> ·
+        <a href="https://www.nahb.org/-/media/NAHB/news-and-economics/docs/housing-economics-plus/special-studies/2025/special-study-households-priced-out-of-the-housing-market-march-2025.pdf">NAHB</a> ·
+        <a href="https://educationdata.org/student-loan-debt-by-generation">Education Data Initiative</a> ·
+        <a href="https://www.empower.com/the-currency/life/student-loans-hit-gen-z-research">Empower</a> ·
+        <a href="https://www.cnbc.com/2025/09/23/young-people-crypto-meme-stocks-options-risk-financial-nihilism.html">CNBC Financial Nihilism</a> ·
+        <a href="https://fortune.com/2024/08/27/sports-betting-gambling-investment-stock-bankruptcy-gen-z-men/">Fortune</a> ·
+        <a href="https://www.jpmorganchase.com/institute/all-topics/financial-health-wealth-creation/real-income-growth-shifts-down-especially-for-the-young">JPM Chase Institute</a> ·
+        <a href="https://gamblingharm.org/sports-betting-revenue-addiction-study/">CT DMHAS/Gemini</a> ·
+        <a href="https://www.macrotrends.net/2526/sp-500-historical-annual-returns">Macrotrends S&P 500</a> ·
+        <a href="https://www.advisorperspectives.com/articles/2017/03/06/a-warning-to-the-advisory-profession-dalbar-s-math-is-wrong">Dalbar Critique</a>
+    </div>
+</div>
+
+<script>
+Chart.defaults.color = '#888';
+Chart.defaults.borderColor = '#262a36';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+const COLORS = {
+    crypto: '#f59e0b', gambling: '#ef4444', prediction: '#8b5cf6', index: '#22c55e',
+    cryptoA: 'rgba(245,158,11,0.7)', gamblingA: 'rgba(239,68,68,0.7)',
+    predictionA: 'rgba(139,92,246,0.7)', indexA: 'rgba(34,197,94,0.7)',
+    housing: '#f59e0b', debt: '#ef4444', wages: '#3b82f6'
+};
+
+function switchTab(id) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+    setTimeout(() => { Object.values(Chart.instances).forEach(c => c.resize()); }, 50);
+}
+
+// === CRISIS TAB ===
+new Chart(document.getElementById('housingGapChart'), {
+    type: 'line',
+    data: {
+        labels: ['2000','2002','2004','2006','2008','2010','2012','2014','2016','2018','2020','2022','2024'],
+        datasets: [
+            { label: 'Home Prices', data: [100,115,140,175,160,135,130,140,155,170,195,250,277], borderColor: COLORS.housing, backgroundColor: 'rgba(245,158,11,0.08)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 3 },
+            { label: 'Median Income', data: [100,103,106,112,115,112,115,120,126,133,140,152,164], borderColor: COLORS.wages, backgroundColor: 'rgba(59,130,246,0.08)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 3 }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': ' + ctx.parsed.y + ' (indexed)' } } },
+        scales: { y: { grid: { color: '#1f2230' }, ticks: { callback: v => v } }, x: { grid: { color: '#1f2230' } } }
+    }
+});
+
+new Chart(document.getElementById('affordabilityChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Under $50K', '$50K–$75K', '$75K–$100K', '$100K–$125K', '$125K+'],
+        datasets: [{
+            label: '% Who Can Afford Median Home',
+            data: [3, 12, 25, 42, 78],
+            backgroundColor: ctx => ctx.parsed.y < 30 ? 'rgba(239,68,68,0.7)' : ctx.parsed.y < 50 ? 'rgba(245,158,11,0.7)' : 'rgba(34,197,94,0.7)',
+            borderRadius: 6
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#1f2230' } }, x: { grid: { display: false } } }
+    }
+});
+
+new Chart(document.getElementById('nihilismChart'), {
+    type: 'bar',
+    data: {
+        labels: [
+            'Believe traditional investing\ncan\'t achieve above-avg returns\n(ages 21–43)',
+            'Gen Z with student debt\nwho delayed major investments',
+            'Borrowers whose loans\nlimit ability to save/invest',
+            'Gen Z gamblers who\ncall gambling "an investment"',
+            'Millennial crypto traders\nwho cite "wealth building"'
+        ],
+        datasets: [{
+            data: [72, 84, 56, 24, 46],
+            backgroundColor: ['rgba(239,68,68,0.7)','rgba(239,68,68,0.6)','rgba(245,158,11,0.7)','rgba(139,92,246,0.7)','rgba(245,158,11,0.6)'],
+            borderRadius: 6
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.x + '%' } } },
+        scales: { x: { beginAtZero: true, max: 100, ticks: { callback: v => v + '%' }, grid: { color: '#1f2230' } }, y: { grid: { display: false } } }
+    }
+});
+
+// === LOSSES TAB ===
+new Chart(document.getElementById('lossRateChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Crypto [BIS]', 'Sports Betting [UCSD]', 'Pred. Mkts [CEPR]*', 'S&P 500 [20yr hold]'],
+        datasets: [{ data: [77, 96, 80, 2], backgroundColor: [COLORS.cryptoA, COLORS.gamblingA, COLORS.predictionA, COLORS.indexA], borderColor: [COLORS.crypto, COLORS.gambling, COLORS.prediction, COLORS.index], borderWidth: 2, borderRadius: 6 }]
+    },
+    options: {
+        responsive: true, plugins: { legend: { display: false },
+            tooltip: { callbacks: { label: ctx => { const n = ['73–81% (BIS peer-reviewed)','96% of 717K users (UCSD)','~80% est. from 32% avg taker loss','~0% over any 20yr period']; return [ctx.parsed.y+'%', n[ctx.dataIndex]]; }}}
+        },
+        scales: { y: { beginAtZero: true, max: 100, ticks: { callback: v => v+'%' }, grid: { color: '#1f2230' } }, x: { grid: { display: false } } }
+    }
+});
+
+new Chart(document.getElementById('winnerChart'), {
+    type: 'bar',
+    data: {
+        labels: ['DFS (1.3% of players)', 'Crypto (whales)', 'Pred. Mkts (sharp traders)', 'S&P 500 (all holders)'],
+        datasets: [{ label: 'Share of gains to top players', data: [91, 75, 70, 15], backgroundColor: [COLORS.gamblingA, COLORS.cryptoA, COLORS.predictionA, COLORS.indexA], borderRadius: 6 }]
+    },
+    options: {
+        indexAxis: 'y', responsive: true, plugins: { legend: { display: false } },
+        scales: { x: { beginAtZero: true, max: 100, ticks: { callback: v => v+'%' }, grid: { color: '#1f2230' } }, y: { grid: { display: false } } }
+    }
+});
+
+new Chart(document.getElementById('medianChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Crypto (BIS)', 'Sports Betting', 'Pred. Mkts (Takers)', 'S&P 500 (20yr)'],
+        datasets: [{ data: [-48, -9, -32, 11.9],
+            backgroundColor: ctx => ctx.parsed && ctx.parsed.y < 0 ? 'rgba(239,68,68,0.7)' : 'rgba(34,197,94,0.7)',
+            borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y + '%' } } },
+        scales: { y: { ticks: { callback: v => v + '%' }, grid: { color: '#1f2230' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('houseEdgeChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Sportsbook Hold', 'Crypto Exchange\n(fees + whale advantage)', 'Pred. Mkt\nMaker Edge', 'Index Fund\nExpense Ratio'],
+        datasets: [{ data: [8.5, 15, 10, 0.03],
+            backgroundColor: [COLORS.gamblingA, COLORS.cryptoA, COLORS.predictionA, COLORS.indexA],
+            borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.parsed.y + '% per dollar' } } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' }, grid: { color: '#1f2230' } }, x: { grid: { display: false } } } }
+});
+
+(() => {
+    const yrs = []; const idx = []; const cry = []; const gam = [];
+    let iv=10000, cv=10000, gv=10000;
+    for(let i=0;i<=20;i++){
+        yrs.push('Yr '+i); idx.push(Math.round(iv)); cry.push(Math.round(cv)); gam.push(Math.round(gv));
+        iv*=1.104; cv*=0.80; gv*=0.85;
+    }
+    new Chart(document.getElementById('growthChart'), {
+        type: 'line',
+        data: { labels: yrs, datasets: [
+            { label: 'S&P 500 (+10.4%/yr)', data: idx, borderColor: COLORS.index, backgroundColor: 'rgba(34,197,94,0.1)', fill: true, tension: 0.3, pointRadius: 0, borderWidth: 3 },
+            { label: 'Median Crypto Trader (modeled from BIS)', data: cry, borderColor: COLORS.crypto, fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2, borderDash: [6,3] },
+            { label: 'Median Gambler (modeled from hold rate)', data: gam, borderColor: COLORS.gambling, fill: false, tension: 0.3, pointRadius: 0, borderWidth: 2, borderDash: [6,3] }
+        ]},
+        options: { responsive: true,
+            plugins: { tooltip: { callbacks: { label: ctx => ctx.dataset.label+': $'+ctx.parsed.y.toLocaleString() } } },
+            scales: { y: { ticks: { callback: v => '$'+(v/1000).toFixed(0)+'K' }, grid: { color: '#1f2230' } }, x: { grid: { color: '#1f2230' } } }
+        }
+    });
+})();
+
+// === DISPLACEMENT TAB ===
+new Chart(document.getElementById('bettingGrowthChart'), {
+    type: 'bar',
+    data: {
+        labels: ['2018','2019','2020','2021','2022','2023'],
+        datasets: [{ label: 'US Online Sports Betting ($B)', data: [6.6, 13.0, 21.5, 52.6, 93.2, 121.1],
+            backgroundColor: 'rgba(239,68,68,0.6)', borderColor: '#ef4444', borderWidth: 1, borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, ticks: { callback: v => '$'+v+'B' }, grid: { color: '#1f2230' } }, x: { grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('allocationChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Under 30', 'Over 50'],
+        datasets: [
+            { label: 'Stocks', data: [28, 55], backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 4 },
+            { label: 'Crypto', data: [35, 8], backgroundColor: 'rgba(245,158,11,0.7)', borderRadius: 4 },
+            { label: 'Other Speculative', data: [20, 10], backgroundColor: 'rgba(139,92,246,0.7)', borderRadius: 4 },
+            { label: 'Bonds / Cash', data: [17, 27], backgroundColor: 'rgba(100,116,139,0.5)', borderRadius: 4 }
+        ]
+    },
+    options: { responsive: true,
+        scales: { y: { stacked: true, beginAtZero: true, max: 100, ticks: { callback: v => v+'%' }, grid: { color: '#1f2230' } }, x: { stacked: true, grid: { display: false } } } }
+});
+
+// === DEMOGRAPHICS TAB ===
+new Chart(document.getElementById('genderChart'), {
+    type: 'bar',
+    data: {
+        labels: ['Crypto', 'Sports Betting', 'Prediction Mkts', 'Index Funds'],
+        datasets: [
+            { label: 'Male', data: [62,72,75,55], backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 4 },
+            { label: 'Female', data: [38,28,25,45], backgroundColor: 'rgba(236,72,153,0.7)', borderRadius: 4 }
+        ]
+    },
+    options: { responsive: true,
+        scales: { y: { stacked: true, beginAtZero: true, max: 100, ticks: { callback: v => v+'%' }, grid: { color: '#1f2230' } }, x: { stacked: true, grid: { display: false } } } }
+});
+
+new Chart(document.getElementById('ageChart'), {
+    type: 'bar',
+    data: {
+        labels: ['18–24','25–34','35–44','45–54','55+'],
+        datasets: [
+            { label: 'Crypto', data: [13,30,27,20,10], backgroundColor: COLORS.cryptoA, borderRadius: 3 },
+            { label: 'Sports Betting', data: [15,34,31,13,7], backgroundColor: COLORS.gamblingA, borderRadius: 3 },
+            { label: 'Prediction Mkts (approx.)', data: [30,35,20,10,5], backgroundColor: COLORS.predictionA, borderRadius: 3 }
+        ]
+    },
+    options: { responsive: true,
+        scales: { y: { beginAtZero: true, ticks: { callback: v => v+'%' }, grid: { color: '#1f2230' } }, x: { grid: { display: false } } } }
+});
+
+// === MARKET GROWTH TAB ===
+// Indexed growth chart (2019 = 100)
+(() => {
+    const years = ['2019','2020','2021','2022','2023','2024','2025 (proj.)'];
+    // Raw data
+    const sportsBetting = [13, 21.5, 52.6, 93.2, 121.1, 150, 165];
+    const predictionMkts = [0.1, 0.3, 0.5, 1.0, 3.5, 11, 44];
+    const cryptoVol = [3.0, 5.0, 14.0, 8.0, 10.0, 18.4, 18.7]; // in trillions
+    const retailStocks = [50, 100, 180, 100, 130, 197, 302]; // in billions
+
+    // Index to 2019 = 100
+    const idx = arr => arr.map(v => Math.round((v / arr[0]) * 100));
+
+    new Chart(document.getElementById('marketGrowthChart'), {
+        type: 'line',
+        data: {
+            labels: years,
+            datasets: [
+                { label: 'Sports Betting Handle', data: idx(sportsBetting), borderColor: COLORS.gambling, backgroundColor: 'rgba(239,68,68,0.08)', fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.gambling, borderWidth: 3 },
+                { label: 'Prediction Markets', data: idx(predictionMkts), borderColor: COLORS.prediction, fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.prediction, borderWidth: 3 },
+                { label: 'Crypto Exchange Volume', data: idx(cryptoVol), borderColor: COLORS.crypto, fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.crypto, borderWidth: 3 },
+                { label: 'Retail Stock Inflows', data: idx(retailStocks), borderColor: COLORS.index, fill: false, tension: 0.3, pointRadius: 5, pointBackgroundColor: COLORS.index, borderWidth: 3, borderDash: [6,3] }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: ctx => {
+                            const raw = [sportsBetting, predictionMkts, cryptoVol.map(v=>v+'T'), retailStocks];
+                            const units = ['$B','$B','','$B'];
+                            return ctx.dataset.label + ': ' + ctx.parsed.y + ' (indexed) — ' + (ctx.datasetIndex === 2 ? '$'+cryptoVol[ctx.dataIndex]+'T' : '$'+[sportsBetting,predictionMkts,cryptoVol,retailStocks][ctx.datasetIndex][ctx.dataIndex]+'B');
+                        }
+                    }
+                },
+                legend: { position: 'bottom', labels: { padding: 16 } },
+                annotation: {
+                    annotations: {
+                        baseline: { type: 'line', yMin: 100, yMax: 100, borderColor: '#555', borderDash: [4,4], borderWidth: 1, label: { display: true, content: '2019 baseline', position: 'start', color: '#666', font: { size: 10 } } }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    type: 'logarithmic',
+                    min: 50,
+                    ticks: {
+                        callback: function(v) {
+                            if([50,100,200,500,1000,2000,5000,10000,50000].includes(v)) return v >= 1000 ? (v/1000)+'K' : v;
+                            return '';
+                        }
+                    },
+                    grid: { color: '#1f2230' },
+                    title: { display: true, text: 'Indexed (2019 = 100, log scale)', color: '#666', font: { size: 11 } }
+                },
+                x: { grid: { color: '#1f2230' } }
+            }
+        }
+    });
+
+    // Absolute volume (sports betting + prediction mkts on left axis, note about crypto)
+    new Chart(document.getElementById('absoluteVolumeChart'), {
+        type: 'bar',
+        data: {
+            labels: years,
+            datasets: [
+                { label: 'Sports Betting ($B)', data: sportsBetting, backgroundColor: 'rgba(239,68,68,0.6)', borderColor: COLORS.gambling, borderWidth: 1, borderRadius: 4 },
+                { label: 'Prediction Mkts ($B)', data: predictionMkts.map(v => v), backgroundColor: 'rgba(139,92,246,0.6)', borderColor: COLORS.prediction, borderWidth: 1, borderRadius: 4 },
+                { label: 'Retail Stock Inflows ($B)', data: retailStocks, backgroundColor: 'rgba(34,197,94,0.4)', borderColor: COLORS.index, borderWidth: 1, borderRadius: 4 }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 12, font: { size: 11 } } },
+                tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y + 'B' } }
+            },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => '$'+v+'B' }, grid: { color: '#1f2230' }, title: { display: true, text: 'Note: Crypto ($3T–$18.7T) excluded due to scale', color: '#666', font: { size: 10 } } },
+                x: { grid: { display: false } }
+            }
+        }
+    });
+
+    // Allocation shift for young men
+    new Chart(document.getElementById('allocationShiftChart'), {
+        type: 'bar',
+        data: {
+            labels: ['2019 (est.)', '2021 (peak)', '2023', '2025 (proj.)'],
+            datasets: [
+                { label: 'Stock Market', data: [3200, 4800, 3400, 4100], backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 4 },
+                { label: 'Sports Betting', data: [800, 1400, 1800, 1934], backgroundColor: 'rgba(239,68,68,0.7)', borderRadius: 4 },
+                { label: 'Crypto', data: [1200, 5500, 2200, 3800], backgroundColor: 'rgba(245,158,11,0.7)', borderRadius: 4 },
+                { label: 'Prediction Mkts', data: [50, 100, 300, 800], backgroundColor: 'rgba(139,92,246,0.7)', borderRadius: 4 }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { padding: 10, font: { size: 11 } } },
+                tooltip: { callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() + '/yr' } }
+            },
+            scales: {
+                y: { stacked: true, beginAtZero: true, ticks: { callback: v => '$'+v.toLocaleString() }, grid: { color: '#1f2230' }, title: { display: true, text: 'Estimated annual spend per participant (18–35 males)', color: '#666', font: { size: 10 } } },
+                x: { stacked: true, grid: { display: false } }
+            }
+        }
+    });
+})();
+
+// === COMPARISON TAB: RADAR ===
+new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: {
+        labels: ['Negative EV','Winner\nConcentration','Addictive\nDesign','24/7\nAvailability','FOMO /\nMomentum Trap','Targets\nYoung Males','Regulatory\nGaps','Framed as\n"Investing"'],
+        datasets: [
+            { label: 'Crypto', data: [8,8,9,10,9,8,9,8], borderColor: COLORS.crypto, backgroundColor: 'rgba(245,158,11,0.12)', borderWidth: 2, pointBackgroundColor: COLORS.crypto },
+            { label: 'Sports Betting', data: [10,9,9,7,6,7,4,3], borderColor: COLORS.gambling, backgroundColor: 'rgba(239,68,68,0.08)', borderWidth: 2, pointBackgroundColor: COLORS.gambling },
+            { label: 'Prediction Mkts', data: [7,7,7,10,6,8,8,5], borderColor: COLORS.prediction, backgroundColor: 'rgba(139,92,246,0.08)', borderWidth: 2, pointBackgroundColor: COLORS.prediction },
+            { label: 'S&P 500 Index', data: [1,1,1,3,2,1,1,10], borderColor: COLORS.index, backgroundColor: 'rgba(34,197,94,0.08)', borderWidth: 2, pointBackgroundColor: COLORS.index }
+        ]
+    },
+    options: { responsive: true,
+        scales: { r: { beginAtZero: true, max: 10, ticks: { display: false }, pointLabels: { font: { size: 11 }, color: '#aaa' }, grid: { color: '#262a36' }, angleLines: { color: '#262a36' } } },
+        plugins: { legend: { position: 'bottom', labels: { padding: 16 } } }
+    }
+});
+</script>
+</body>
+</html>

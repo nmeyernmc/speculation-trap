@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Regulation Race — Global Crypto & Stablecoin Policy Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{background:#0a0a0f;color:#d4d4d8;font-family:'Georgia','Times New Roman',serif;line-height:1.7;overflow-x:hidden}
+.sans{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif}
+h1,h2,h3,.headline{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif}
+
+/* === PROGRESS BAR === */
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#3b82f6,#8b5cf6,#ef4444);z-index:9999;width:0%;transition:width 0.1s linear}
+
+/* === NAV === */
+nav{position:fixed;top:0;left:0;right:0;z-index:999;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;background:rgba(10,10,15,0);transition:background 0.4s,backdrop-filter 0.4s}
+nav.scrolled{background:rgba(10,10,15,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06)}
+nav .logo{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;font-family:-apple-system,sans-serif}
+nav .nav-links{display:flex;gap:24px}
+nav .nav-links a{font-size:11px;color:#888;text-decoration:none;letter-spacing:1px;text-transform:uppercase;font-family:-apple-system,sans-serif;transition:color 0.3s}
+nav .nav-links a:hover{color:#fff}
+nav .nav-links a.back-link{color:#3b82f6;border:1px solid rgba(59,130,246,0.3);padding:4px 12px;border-radius:20px;font-size:10px}
+nav .nav-links a.back-link:hover{background:rgba(59,130,246,0.15);color:#fff}
+
+/* === SECTIONS === */
+section{min-height:100vh;position:relative;display:flex;align-items:center;justify-content:center}
+
+/* === HERO === */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(59,130,246,0.08) 0%,transparent 60%)}
+.hero .overline{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#3b82f6;margin-bottom:24px;font-family:-apple-system,sans-serif;opacity:0;transform:translateY(20px);transition:all 0.8s ease}
+.hero h1{font-size:clamp(40px,7vw,80px);font-weight:800;color:#fff;line-height:1.05;max-width:900px;letter-spacing:-2px;opacity:0;transform:translateY(30px);transition:all 1s ease 0.2s}
+.hero .subtitle{font-size:clamp(16px,2.2vw,22px);color:#a1a1aa;margin-top:24px;max-width:640px;line-height:1.6;opacity:0;transform:translateY(20px);transition:all 0.8s ease 0.5s}
+.hero .scroll-cue{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0;transition:all 0.8s ease 1s}
+.hero .scroll-cue span{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#555;font-family:-apple-system,sans-serif}
+.hero .scroll-cue .arrow{width:1px;height:40px;background:linear-gradient(to bottom,#555,transparent);animation:pulse-down 2s infinite}
+@keyframes pulse-down{0%,100%{opacity:0.3;transform:scaleY(0.7)}50%{opacity:1;transform:scaleY(1)}}
+.hero.visible .overline,.hero.visible h1,.hero.visible .subtitle,.hero.visible .scroll-cue{opacity:1;transform:translateY(0) translateX(0)}
+.hero.visible .scroll-cue{transform:translateX(-50%)}
+
+/* === CHAPTER HEADERS === */
+.chapter-header{min-height:70vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px}
+.chapter-num{font-size:11px;letter-spacing:6px;text-transform:uppercase;margin-bottom:16px;font-family:-apple-system,sans-serif}
+.chapter-title{font-size:clamp(32px,5vw,56px);font-weight:700;color:#fff;letter-spacing:-1px;max-width:700px;line-height:1.15}
+.chapter-sub{font-size:18px;color:#71717a;margin-top:16px;max-width:500px}
+
+/* === CONTENT BLOCKS === */
+.content-block{max-width:680px;margin:0 auto;padding:60px 24px}
+.content-block p{font-size:19px;color:#a1a1aa;margin-bottom:28px;line-height:1.8}
+.content-block p strong{color:#e4e4e7}
+
+/* === REVEAL === */
+.reveal{opacity:0;transform:translateY(40px);transition:all 0.8s cubic-bezier(0.16,1,0.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:0.15s}
+.reveal-delay-2{transition-delay:0.3s}
+.reveal-delay-3{transition-delay:0.45s}
+.reveal-delay-4{transition-delay:0.6s}
+
+/* === BIG STATS === */
+.big-stat-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px}
+.big-stat{text-align:center}
+.big-stat .number{font-size:clamp(80px,15vw,180px);font-weight:900;line-height:1;letter-spacing:-4px;font-family:-apple-system,sans-serif;opacity:0;transform:scale(0.8);transition:all 1s cubic-bezier(0.16,1,0.3,1)}
+.big-stat .number.visible{opacity:1;transform:scale(1)}
+.big-stat .number.blue{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.big-stat .number.red{background:linear-gradient(135deg,#ef4444,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.big-stat .number.green{background:linear-gradient(135deg,#22c55e,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.big-stat .label{font-size:clamp(16px,2.5vw,24px);color:#71717a;margin-top:16px;max-width:500px;margin-left:auto;margin-right:auto}
+.big-stat .source{font-size:12px;color:#3f3f46;margin-top:12px;font-family:-apple-system,sans-serif}
+
+/* === KPIS ROW === */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;max-width:1100px;margin:0 auto;padding:40px 24px}
+.kpi-card{background:rgba(26,29,39,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:24px;text-align:center;backdrop-filter:blur(8px)}
+.kpi-card .kpi-val{font-size:36px;font-weight:900;font-family:-apple-system,sans-serif}
+.kpi-card .kpi-label{font-size:12px;color:#71717a;margin-top:4px;font-family:-apple-system,sans-serif;text-transform:uppercase;letter-spacing:1px}
+.kpi-val.blue{color:#3b82f6}.kpi-val.green{color:#22c55e}.kpi-val.red{color:#ef4444}.kpi-val.amber{color:#f59e0b}.kpi-val.purple{color:#8b5cf6}
+
+/* === VS SECTION === */
+.vs-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px}
+.vs-grid{display:grid;grid-template-columns:1fr 80px 1fr;gap:24px;max-width:1000px;align-items:center}
+.vs-divider{display:flex;align-items:center;justify-content:center}
+.vs-badge{width:64px;height:64px;border-radius:50%;background:rgba(139,92,246,0.15);border:2px solid #8b5cf6;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:900;color:#8b5cf6;font-family:-apple-system,sans-serif}
+.vs-side{background:rgba(26,29,39,0.5);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:36px}
+.vs-side .vs-flag{font-size:48px;margin-bottom:12px}
+.vs-side h3{font-size:14px;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;font-family:-apple-system,sans-serif}
+.vs-side h2{font-size:clamp(24px,3.5vw,32px);font-weight:800;color:#fff;margin-bottom:16px;font-family:-apple-system,sans-serif;letter-spacing:-0.5px}
+.vs-side p{font-size:15px;color:#a1a1aa;line-height:1.7;margin-bottom:12px}
+.vs-tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;font-family:-apple-system,sans-serif;letter-spacing:0.5px;margin:4px 4px 4px 0}
+.tag-green{background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3)}
+.tag-blue{background:rgba(59,130,246,0.15);color:#3b82f6;border:1px solid rgba(59,130,246,0.3)}
+.tag-amber{background:rgba(245,158,11,0.15);color:#f59e0b;border:1px solid rgba(245,158,11,0.3)}
+.tag-red{background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3)}
+.tag-purple{background:rgba(139,92,246,0.15);color:#8b5cf6;border:1px solid rgba(139,92,246,0.3)}
+.tag-gray{background:rgba(113,113,122,0.15);color:#71717a;border:1px solid rgba(113,113,122,0.3)}
+@media(max-width:768px){.vs-grid{grid-template-columns:1fr;gap:16px}.vs-divider{display:none}}
+
+/* === CHART SECTIONS === */
+.chart-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px}
+.chart-container{max-width:900px;width:100%;margin:0 auto}
+.chart-container h3{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:12px;font-family:-apple-system,sans-serif}
+.chart-container h2{font-size:clamp(24px,3.5vw,36px);font-weight:700;color:#fff;margin-bottom:8px;letter-spacing:-0.5px}
+.chart-container .chart-sub{font-size:15px;color:#71717a;margin-bottom:32px;max-width:600px}
+.chart-wrap{background:rgba(26,29,39,0.5);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:24px}
+.chart-wrap canvas{max-height:420px}
+
+/* === REG GRID === */
+.reg-grid{max-width:1100px;margin:0 auto;padding:20px 24px;display:grid;grid-template-columns:1fr;gap:12px}
+.reg-card{display:grid;grid-template-columns:50px 1fr auto;gap:16px;align-items:center;background:rgba(26,29,39,0.5);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px 20px;transition:border-color 0.3s,background 0.3s}
+.reg-card:hover{border-color:rgba(59,130,246,0.3);background:rgba(26,29,39,0.8)}
+.reg-card .flag{font-size:32px}
+.reg-card .reg-info h4{font-size:15px;font-weight:700;color:#fff;font-family:-apple-system,sans-serif;margin-bottom:2px}
+.reg-card .reg-info .reg-framework{font-size:13px;color:#a1a1aa;font-family:-apple-system,sans-serif}
+.reg-card .reg-tags{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
+@media(max-width:600px){.reg-card{grid-template-columns:40px 1fr;gap:12px}.reg-card .reg-tags{grid-column:1/-1;justify-content:flex-start}}
+
+/* === TIMELINE === */
+.timeline{max-width:700px;margin:0 auto;padding:40px 24px 40px 48px;position:relative}
+.timeline::before{content:'';position:absolute;left:29px;top:60px;bottom:40px;width:2px;background:linear-gradient(to bottom,#22c55e,#3b82f6,#f59e0b,#71717a)}
+.tl-item{display:flex;gap:24px;margin-bottom:32px;position:relative}
+.tl-dot{width:12px;height:12px;border-radius:50%;margin-top:6px;flex-shrink:0;position:relative;z-index:1}
+.tl-dot.green{background:#22c55e;box-shadow:0 0 12px rgba(34,197,94,0.4)}
+.tl-dot.blue{background:#3b82f6;box-shadow:0 0 12px rgba(59,130,246,0.4)}
+.tl-dot.amber{background:#f59e0b;box-shadow:0 0 12px rgba(245,158,11,0.4)}
+.tl-content h4{font-size:15px;font-weight:700;color:#fff;font-family:-apple-system,sans-serif}
+.tl-content .tl-sub{font-size:13px;color:#a1a1aa;font-family:-apple-system,sans-serif;margin-top:2px}
+.tl-content .tl-date{font-size:11px;color:#3b82f6;font-family:-apple-system,sans-serif;font-weight:600;margin-top:4px}
+
+/* === CBDC CARDS === */
+.cbdc-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;max-width:1100px;margin:0 auto;padding:20px 24px}
+.cbdc-card{background:rgba(26,29,39,0.5);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:24px;transition:border-color 0.3s}
+.cbdc-card:hover{border-color:rgba(59,130,246,0.3)}
+.cbdc-card .cbdc-flag{font-size:36px;margin-bottom:8px}
+.cbdc-card h4{font-size:16px;font-weight:700;color:#fff;font-family:-apple-system,sans-serif}
+.cbdc-card .cbdc-name{font-size:13px;color:#8b5cf6;font-family:-apple-system,sans-serif;margin-bottom:8px}
+.cbdc-card .cbdc-stat{font-size:24px;font-weight:900;font-family:-apple-system,sans-serif;margin:8px 0}
+.cbdc-card .cbdc-detail{font-size:13px;color:#71717a;line-height:1.6;font-family:-apple-system,sans-serif}
+
+/* === PULLQUOTE === */
+.pullquote-section{min-height:50vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;position:relative}
+.pullquote-section::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(59,130,246,0.06),transparent 70%)}
+.pullquote{text-align:center;max-width:700px;position:relative}
+.pullquote blockquote{font-size:clamp(22px,3.5vw,34px);color:#e4e4e7;font-style:italic;line-height:1.5;letter-spacing:-0.5px}
+
+/* === GAP CARDS === */
+.gap-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;max-width:1100px;margin:0 auto;padding:20px 24px}
+.gap-card{background:rgba(26,29,39,0.5);border-radius:16px;padding:24px;text-align:center;border:2px solid transparent;transition:border-color 0.3s}
+.gap-card.strong{border-color:rgba(34,197,94,0.3)}
+.gap-card.moderate{border-color:rgba(245,158,11,0.3)}
+.gap-card.minimal{border-color:rgba(239,68,68,0.3)}
+.gap-card .gap-icon{font-size:28px;margin-bottom:8px}
+.gap-card h4{font-size:14px;font-weight:700;color:#fff;font-family:-apple-system,sans-serif;margin-bottom:4px}
+.gap-card .gap-level{font-size:28px;font-weight:900;font-family:-apple-system,sans-serif;margin:8px 0}
+.gap-card .gap-detail{font-size:12px;color:#71717a;line-height:1.6;font-family:-apple-system,sans-serif}
+
+/* === FINALE === */
+.finale{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;position:relative}
+.finale::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,rgba(59,130,246,0.06) 0%,transparent 60%)}
+.finale h2{font-size:clamp(32px,5vw,56px);font-weight:800;color:#fff;letter-spacing:-1px;max-width:700px;line-height:1.15}
+.finale p{font-size:19px;color:#a1a1aa;margin-top:20px;max-width:580px;line-height:1.7}
+
+/* === FOOTNOTES === */
+.footnotes{max-width:680px;margin:0 auto;padding:80px 24px 120px;border-top:1px solid rgba(255,255,255,0.06)}
+.footnotes h3{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:24px;font-family:-apple-system,sans-serif}
+.footnotes p{font-size:13px;color:#52525b;line-height:1.8;margin-bottom:8px;font-family:-apple-system,sans-serif}
+.footnotes a{color:#71717a;text-decoration:underline;text-decoration-color:#3f3f46}
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<nav>
+  <div class="logo">The Regulation Race</div>
+  <div class="nav-links">
+    <a href="#global">Global</a>
+    <a href="#frameworks">Frameworks</a>
+    <a href="#states">States</a>
+    <a href="#cbdc">CBDCs</a>
+    <a href="#gap">The Gap</a>
+    <a href="index.html" class="back-link">&larr; Speculation Trap</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <div class="overline">A Companion Tracker</div>
+  <h1>The Regulation Race</h1>
+  <div class="subtitle">137 countries are scrambling to regulate crypto, stablecoins, and digital currencies. The rules they write — or don't — will determine who gets protected and who gets left in the speculation trap.</div>
+  <div class="scroll-cue">
+    <span>Scroll to explore</span>
+    <div class="arrow"></div>
+  </div>
+</section>
+
+<!-- ============ THE SCALE ============ -->
+<section class="big-stat-section">
+  <div class="big-stat reveal">
+    <div class="number blue">137</div>
+    <div class="label">countries and currency unions — representing 98% of global GDP — are now actively exploring digital currency regulation.</div>
+    <div class="source">Atlantic Council CBDC Tracker, 2026</div>
+  </div>
+</section>
+
+<div class="kpi-row reveal">
+  <div class="kpi-card"><div class="kpi-val green">79</div><div class="kpi-label">Live Frameworks</div></div>
+  <div class="kpi-card"><div class="kpi-val amber">40</div><div class="kpi-label">In Draft</div></div>
+  <div class="kpi-card"><div class="kpi-val purple">13</div><div class="kpi-label">Proposed</div></div>
+  <div class="kpi-card"><div class="kpi-val red">70</div><div class="kpi-label">No Framework</div></div>
+</div>
+
+<div class="content-block">
+  <p class="reveal">Five years ago, most countries had no rules for crypto at all. Today, the regulatory landscape is a patchwork — some nations have built comprehensive frameworks, others have outright bans, and dozens are still somewhere between a whitepaper and a law. The problem: people are already trading, lending, and losing money in all of them.</p>
+</div>
+
+<section class="chart-section" id="global">
+  <div class="chart-container reveal">
+    <h3>Global Snapshot</h3>
+    <h2>Stablecoin Regulation by Stage</h2>
+    <div class="chart-sub">The majority of jurisdictions still lack purpose-built stablecoin rules.</div>
+    <div class="chart-wrap">
+      <canvas id="stageChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHAPTER 1: TWO FRAMEWORKS ============ -->
+<section class="chapter-header reveal" id="frameworks">
+  <div class="chapter-num" style="color:#8b5cf6">Chapter I</div>
+  <div class="chapter-title">The Two Gravitational<br>Forces</div>
+  <div class="chapter-sub">The GENIUS Act and MiCA are pulling global regulation into alignment.</div>
+</section>
+
+<section class="vs-section">
+  <div class="vs-grid reveal">
+    <div class="vs-side">
+      <div class="vs-flag">🇺🇸</div>
+      <h3 style="color:#3b82f6">United States</h3>
+      <h2>GENIUS Act</h2>
+      <p>Signed July 17, 2025. First comprehensive federal stablecoin law. Restricts issuance to banks, credit unions, and licensed non-bank issuers under OCC oversight.</p>
+      <div>
+        <span class="vs-tag tag-green">1:1 Reserves</span>
+        <span class="vs-tag tag-green">BSA/AML</span>
+        <span class="vs-tag tag-blue">State Issuers ≤$10B</span>
+        <span class="vs-tag tag-amber">Rules by Jul 2026</span>
+        <span class="vs-tag tag-purple">Credit Unions Eligible</span>
+      </div>
+    </div>
+    <div class="vs-divider">
+      <div class="vs-badge">VS</div>
+    </div>
+    <div class="vs-side">
+      <div class="vs-flag">🇪🇺</div>
+      <h3 style="color:#3b82f6">European Union</h3>
+      <h2>MiCA</h2>
+      <p>Live across all 27 member states since December 2024. One license, continent-wide access. Covers all crypto-assets, not just stablecoins.</p>
+      <div>
+        <span class="vs-tag tag-green">1:1 Reserves</span>
+        <span class="vs-tag tag-green">Asset Segregation</span>
+        <span class="vs-tag tag-green">Mandatory Licensing</span>
+        <span class="vs-tag tag-green">Risk Disclosures</span>
+        <span class="vs-tag tag-blue">Consumer Protection</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">The World Economic Forum notes these two frameworks are <strong>converging</strong> — both require 1:1 reserve backing, mandatory audits, and AML compliance. But there's a key difference: MiCA covers the entire crypto ecosystem with explicit consumer protections. The GENIUS Act focuses narrowly on payment stablecoins, leaving retail speculation largely to existing (and often inadequate) securities and commodities frameworks.</p>
+  <p class="reveal">The CFTC is now drafting purpose-built rules for retail leveraged crypto trading — a new category of exchange registration designed specifically for crypto derivatives. But those rules won't arrive until 2026 at the earliest, leaving a window where retail participants are exposed.</p>
+</div>
+
+<!-- ============ CHAPTER 2: GLOBAL PATCHWORK ============ -->
+<section class="chapter-header reveal">
+  <div class="chapter-num" style="color:#3b82f6">Chapter II</div>
+  <div class="chapter-title">The Global<br>Patchwork</div>
+  <div class="chapter-sub">Some countries lead. Some ban. Most are still figuring it out.</div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">Beyond the US and EU, a handful of jurisdictions are setting the pace — and their approaches reveal fundamentally different philosophies about what crypto is and who it serves.</p>
+</div>
+
+<div class="reg-grid">
+  <div class="reg-card reveal"><div class="flag">🇸🇬</div><div class="reg-info"><h4>Singapore</h4><div class="reg-framework">Payment Services Act + MAS Stablecoin Framework</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-green">Strong Protection</span><span class="vs-tag tag-blue">VASP Licensing</span></div></div>
+  <div class="reg-card reveal reveal-delay-1"><div class="flag">🇭🇰</div><div class="reg-info"><h4>Hong Kong</h4><div class="reg-framework">Stablecoin Ordinance + VATP Licensing (Aug 2025)</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-amber">Moderate Protection</span><span class="vs-tag tag-purple">Regional Benchmark</span></div></div>
+  <div class="reg-card reveal reveal-delay-2"><div class="flag">🇯🇵</div><div class="reg-info"><h4>Japan</h4><div class="reg-framework">Payment Services Act (revised) — bank/trust issuance only</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-green">Strong Protection</span><span class="vs-tag tag-green">Strict Reserves</span></div></div>
+  <div class="reg-card reveal reveal-delay-3"><div class="flag">🇬🇧</div><div class="reg-info"><h4>United Kingdom</h4><div class="reg-framework">FCA Framework (CP25/14) — stablecoin custody rules proposed</div></div><div class="reg-tags"><span class="vs-tag tag-amber">Draft</span><span class="vs-tag tag-green">Strong Protection</span><span class="vs-tag tag-blue">Principles-Based</span></div></div>
+  <div class="reg-card reveal"><div class="flag">🇦🇪</div><div class="reg-info"><h4>United Arab Emirates</h4><div class="reg-framework">Payment Token Regulation + Dubai VARA</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-amber">Moderate Protection</span></div></div>
+  <div class="reg-card reveal reveal-delay-1"><div class="flag">🇰🇷</div><div class="reg-info"><h4>South Korea</h4><div class="reg-framework">Virtual Asset User Protection Act (Jul 2024)</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-green">Strong Protection</span><span class="vs-tag tag-green">Deposit Protection</span></div></div>
+  <div class="reg-card reveal reveal-delay-2"><div class="flag">🇨🇭</div><div class="reg-info"><h4>Switzerland</h4><div class="reg-framework">DLT Act + FINMA Framework — banking license for issuers</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-green">Strong Protection</span></div></div>
+  <div class="reg-card reveal reveal-delay-3"><div class="flag">🇧🇷</div><div class="reg-info"><h4>Brazil</h4><div class="reg-framework">Crypto Framework Law (Jun 2023) + Drex CBDC</div></div><div class="reg-tags"><span class="vs-tag tag-green">Live</span><span class="vs-tag tag-amber">Moderate Protection</span></div></div>
+  <div class="reg-card reveal"><div class="flag">🇮🇳</div><div class="reg-info"><h4>India</h4><div class="reg-framework">30% crypto tax + 1% TDS — no comprehensive framework</div></div><div class="reg-tags"><span class="vs-tag tag-amber">Draft</span><span class="vs-tag tag-red">Minimal Protection</span><span class="vs-tag tag-amber">Tax-Based</span></div></div>
+  <div class="reg-card reveal reveal-delay-1"><div class="flag">🇨🇳</div><div class="reg-info"><h4>China</h4><div class="reg-framework">Full ban on crypto trading and mining (Sep 2021)</div></div><div class="reg-tags"><span class="vs-tag tag-red">Prohibited</span><span class="vs-tag tag-purple">Digital Yuan Focus</span></div></div>
+  <div class="reg-card reveal reveal-delay-2"><div class="flag">🇷🇺</div><div class="reg-info"><h4>Russia</h4><div class="reg-framework">Digital Financial Assets Law — mining OK, payments banned</div></div><div class="reg-tags"><span class="vs-tag tag-amber">Restricted</span><span class="vs-tag tag-red">Minimal Protection</span></div></div>
+  <div class="reg-card reveal reveal-delay-3"><div class="flag">🇦🇷</div><div class="reg-info"><h4>Argentina</h4><div class="reg-framework">No framework — high adoption, limited oversight</div></div><div class="reg-tags"><span class="vs-tag tag-gray">None</span><span class="vs-tag tag-red">Minimal Protection</span></div></div>
+</div>
+
+<!-- ============ CHAPTER 3: US STATES ============ -->
+<section class="chapter-header reveal" id="states">
+  <div class="chapter-num" style="color:#22c55e">Chapter III</div>
+  <div class="chapter-title">The State<br>Laboratory</div>
+  <div class="chapter-sub">While Congress debated, states started building.</div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">The GENIUS Act created a federal floor, but states can still regulate issuers under $10 billion. Some were already years ahead. Wyoming minted its own stablecoin. New York has required a BitLicense since 2015. California delayed its digital asset law until 2026. The result is a laboratory of approaches — and a preview of where the friction will be.</p>
+</div>
+
+<section class="big-stat-section">
+  <div class="big-stat reveal">
+    <div class="number green" style="font-size:clamp(40px,8vw,100px)">$10B</div>
+    <div class="label">The GENIUS Act threshold: state-regulated stablecoin issuers can operate independently below $10 billion. Above that, federal oversight kicks in.</div>
+  </div>
+</section>
+
+<div class="timeline reveal">
+  <div class="tl-item"><div class="tl-dot green"></div><div class="tl-content"><h4>New York — BitLicense</h4><div class="tl-sub">Most stringent state regime. Stablecoins are virtual currency under 23 NYCRR Part 200. DFS issued USD-backed reserve guidance in 2022.</div><div class="tl-date">Live since 2015</div></div></div>
+  <div class="tl-item"><div class="tl-dot green"></div><div class="tl-content"><h4>Wyoming — SPDI Charter + Frontier Stable Token</h4><div class="tl-sub">Created Special Purpose Depository Institution charter. First state to sponsor its own stablecoin (FRNT). The boldest experiment in state-level digital currency.</div><div class="tl-date">SPDI since 2019 · FRNT launched 2025</div></div></div>
+  <div class="tl-item"><div class="tl-dot green"></div><div class="tl-content"><h4>Nebraska — Digital Asset Bank Charter</h4><div class="tl-sub">Following Wyoming's model with state stablecoin legislation and digital asset bank charter framework.</div><div class="tl-date">Live</div></div></div>
+  <div class="tl-item"><div class="tl-dot green"></div><div class="tl-content"><h4>Texas — Virtual Currency Act</h4><div class="tl-sub">First state to include stablecoins within "money or monetary value" under its money transmission statute.</div><div class="tl-date">Live since 2021</div></div></div>
+  <div class="tl-item"><div class="tl-dot blue"></div><div class="tl-content"><h4>Massachusetts — Updated Money Transmission Act</h4><div class="tl-sub">Comprehensive new regulations: net worth thresholds, permissible investments, surety bonds.</div><div class="tl-date">Effective November 2025</div></div></div>
+  <div class="tl-item"><div class="tl-dot amber"></div><div class="tl-content"><h4>California — Digital Financial Assets Law</h4><div class="tl-sub">Licensure extended to July 2026. Largest state market still without active enforcement.</div><div class="tl-date">Pending — July 1, 2026</div></div></div>
+  <div class="tl-item"><div class="tl-dot green"></div><div class="tl-content"><h4>Federal — GENIUS Act</h4><div class="tl-sub">Federal floor. OCC oversight. 1:1 reserves. BSA/AML. Final rules expected July 2026.</div><div class="tl-date">Signed July 17, 2025</div></div></div>
+</div>
+
+<!-- ============ CHAPTER 4: CBDCs ============ -->
+<section class="chapter-header reveal" id="cbdc">
+  <div class="chapter-num" style="color:#ef4444">Chapter IV</div>
+  <div class="chapter-title">The Digital<br>Currency Divide</div>
+  <div class="chapter-sub">49 countries are piloting central bank digital currencies. One just cancelled theirs.</div>
+</section>
+
+<section class="vs-section">
+  <div class="vs-grid reveal">
+    <div class="vs-side" style="text-align:center">
+      <div class="vs-flag">🇨🇳</div>
+      <h3 style="color:#ef4444">China</h3>
+      <div style="font-size:48px;font-weight:900;color:#ef4444;font-family:-apple-system,sans-serif;margin:12px 0">$2.37T</div>
+      <p>in cumulative digital yuan transactions. 3.48 billion transactions across 17 provinces. The largest CBDC deployment on Earth.</p>
+    </div>
+    <div class="vs-divider"><div class="vs-badge">VS</div></div>
+    <div class="vs-side" style="text-align:center">
+      <div class="vs-flag">🇺🇸</div>
+      <h3 style="color:#71717a">United States</h3>
+      <div style="font-size:48px;font-weight:900;color:#71717a;font-family:-apple-system,sans-serif;margin:12px 0">$0</div>
+      <p>Executive order halted all CBDC work in 2025. The only major economy to formally cancel its digital currency program.</p>
+    </div>
+  </div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">This is the geopolitical story in two data points. China is building state-controlled digital infrastructure at massive scale. The US decided private stablecoins under federal oversight are the answer instead. Europe is hedging: MiCA regulates private stablecoins while the ECB develops the digital euro for a potential 2028 launch.</p>
+</div>
+
+<div class="cbdc-cards">
+  <div class="cbdc-card reveal"><div class="cbdc-flag">🇧🇸</div><h4>Bahamas</h4><div class="cbdc-name">Sand Dollar</div><span class="vs-tag tag-green">Launched</span><div class="cbdc-detail">World's first retail CBDC. Live since October 2020.</div></div>
+  <div class="cbdc-card reveal reveal-delay-1"><div class="cbdc-flag">🇯🇲</div><h4>Jamaica</h4><div class="cbdc-name">Jam-Dex</div><span class="vs-tag tag-green">Launched</span><div class="cbdc-detail">First country to legalize CBDC as legal tender. July 2022.</div></div>
+  <div class="cbdc-card reveal reveal-delay-2"><div class="cbdc-flag">🇳🇬</div><h4>Nigeria</h4><div class="cbdc-name">eNaira</div><span class="vs-tag tag-green">Launched</span><div class="cbdc-detail">Live since Oct 2021. Low adoption despite massive population.</div></div>
+  <div class="cbdc-card reveal reveal-delay-3"><div class="cbdc-flag">🇮🇳</div><h4>India</h4><div class="cbdc-name">Digital Rupee (e₹)</div><span class="vs-tag tag-blue">Pilot</span><div class="cbdc-stat" style="color:#3b82f6">+334% YoY</div><div class="cbdc-detail">₹10.16B in circulation by March 2025. Second-largest pilot.</div></div>
+  <div class="cbdc-card reveal"><div class="cbdc-flag">🇦🇪</div><h4>UAE</h4><div class="cbdc-name">Digital Dirham</div><span class="vs-tag tag-blue">Pilot</span><div class="cbdc-detail">Launched Nov 2025. First blockchain-based central bank tx.</div></div>
+  <div class="cbdc-card reveal reveal-delay-1"><div class="cbdc-flag">🇧🇷</div><h4>Brazil</h4><div class="cbdc-name">Drex</div><span class="vs-tag tag-blue">Pilot</span><div class="cbdc-detail">Two-phase rollout planned for 2026.</div></div>
+  <div class="cbdc-card reveal reveal-delay-2"><div class="cbdc-flag">🇪🇺</div><h4>EU</h4><div class="cbdc-name">Digital Euro</div><span class="vs-tag tag-amber">Development</span><div class="cbdc-detail">ECB targeting 2028. Scheme rulebook in progress.</div></div>
+  <div class="cbdc-card reveal reveal-delay-3"><div class="cbdc-flag">🇬🇧</div><h4>UK</h4><div class="cbdc-name">Digital Pound</div><span class="vs-tag tag-amber">Development</span><div class="cbdc-detail">BOE/HMT consultation. "Britcoin" research phase.</div></div>
+</div>
+
+<section class="chart-section">
+  <div class="chart-container reveal">
+    <h3>Central Bank Digital Currencies</h3>
+    <h2>CBDC Development Status Worldwide</h2>
+    <div class="chart-sub">49 pilots underway — but adoption remains the challenge.</div>
+    <div class="chart-wrap">
+      <canvas id="cbdcChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CHAPTER 5: THE GAP ============ -->
+<section class="chapter-header reveal" id="gap">
+  <div class="chapter-num" style="color:#ef4444">Chapter V</div>
+  <div class="chapter-title">The Consumer<br>Protection Gap</div>
+  <div class="chapter-sub">Regulating stablecoins is not the same as protecting the people who trade them.</div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">Here's what connects this tracker back to the Speculation Trap: <strong>most regulatory frameworks focus on stablecoin issuance and AML compliance — not on the retail investors losing money.</strong> Having a well-regulated stablecoin doesn't help the 73–81% of crypto traders who lose money, or the 96% of sports bettors who end up in the red.</p>
+  <p class="reveal">The gap between "we regulate the product" and "we protect the person" is where the damage happens.</p>
+</div>
+
+<div class="gap-row">
+  <div class="gap-card strong reveal"><div class="gap-icon">🛡️</div><h4>EU (MiCA)</h4><div class="gap-level" style="color:#22c55e">Strong</div><div class="gap-detail">Risk disclosures, marketing rules, asset segregation, complaint handling.</div></div>
+  <div class="gap-card strong reveal reveal-delay-1"><div class="gap-icon">🛡️</div><h4>South Korea</h4><div class="gap-level" style="color:#22c55e">Strong</div><div class="gap-detail">Deposit protection and unfair trading prohibition — rare globally.</div></div>
+  <div class="gap-card strong reveal reveal-delay-2"><div class="gap-icon">🛡️</div><h4>Japan</h4><div class="gap-level" style="color:#22c55e">Strong</div><div class="gap-detail">Bank-only issuance, strict reserves, exchange licensing with fund segregation.</div></div>
+  <div class="gap-card moderate reveal reveal-delay-3"><div class="gap-icon">⚠️</div><h4>US (GENIUS)</h4><div class="gap-level" style="color:#f59e0b">Moderate</div><div class="gap-detail">Strong stablecoin rules, but retail crypto speculation has minimal dedicated protection.</div></div>
+  <div class="gap-card moderate reveal"><div class="gap-icon">⚠️</div><h4>Singapore</h4><div class="gap-level" style="color:#f59e0b">Moderate</div><div class="gap-detail">VASP licensing solid, but retail risk warnings are the main consumer tool.</div></div>
+  <div class="gap-card minimal reveal reveal-delay-1"><div class="gap-icon">🚨</div><h4>India</h4><div class="gap-level" style="color:#ef4444">Minimal</div><div class="gap-detail">30% tax but no framework. Hundreds of millions exposed with no suitability rules.</div></div>
+  <div class="gap-card minimal reveal reveal-delay-2"><div class="gap-icon">🚨</div><h4>Argentina</h4><div class="gap-level" style="color:#ef4444">Minimal</div><div class="gap-detail">High adoption from currency instability. Virtually no consumer protection.</div></div>
+  <div class="gap-card minimal reveal reveal-delay-3"><div class="gap-icon">🚨</div><h4>Nigeria</h4><div class="gap-level" style="color:#ef4444">Minimal</div><div class="gap-detail">SEC VASP registration exists on paper. Enforcement limited, losses widespread.</div></div>
+</div>
+
+<section class="pullquote-section reveal">
+  <div class="pullquote">
+    <blockquote>"Regulating stablecoin reserves protects the financial system. Regulating how platforms market leveraged crypto products to 22-year-olds protects people. Most countries are doing the first. Almost none are doing the second."</blockquote>
+  </div>
+</section>
+
+<!-- ============ FINALE ============ -->
+<section class="finale reveal">
+  <h2>The Race Isn't Over</h2>
+  <p>By July 2026, U.S. regulators must finalize GENIUS Act rules. The CFTC is drafting frameworks for retail crypto leverage. The ECB is building the digital euro. China's digital yuan is at $2.37 trillion. The question isn't whether regulation is coming — it's whether it arrives before the next generation of retail participants loses their savings in the gap between "allowed" and "protected."</p>
+  <p style="font-size:15px;color:#52525b;margin-top:32px;font-family:-apple-system,sans-serif">Data current as of March 2026. Part of <a href="index.html" style="color:#3b82f6;text-decoration:underline">The Speculation Trap</a> — our investigation into how economic despair is driving a generation into financial self-harm through speculative markets.</p>
+</section>
+
+<div class="footnotes">
+  <h3>Sources</h3>
+  <p><strong>GENIUS Act:</strong> Congress.gov S.1582; White House Fact Sheet (Jul 2025); Arnold & Porter; Latham & Watkins.</p>
+  <p><strong>MiCA:</strong> ESMA; World Economic Forum convergence analysis (Sep 2025).</p>
+  <p><strong>Global:</strong> Chainalysis 2025 Round-Up; Elliptic; TRM Labs Global Policy Outlook 2025/26.</p>
+  <p><strong>US States:</strong> Paul Hastings tracker; Morgan Lewis; NYDFS.</p>
+  <p><strong>CBDCs:</strong> Atlantic Council Tracker; IMF (2025); CoinLedger.</p>
+  <p><strong>Consumer protection:</strong> ESMA warnings; CFTC Project Crypto; South Korea VAUPA.</p>
+</div>
+
+<script>
+const progressBar=document.getElementById('progress-bar');
+window.addEventListener('scroll',()=>{const h=document.documentElement.scrollHeight-window.innerHeight;progressBar.style.width=(window.scrollY/h*100)+'%';document.querySelector('nav').classList.toggle('scrolled',window.scrollY>60)},{passive:true});
+
+const revealObs=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:0.15,rootMargin:'0px 0px -40px 0px'});
+document.querySelectorAll('.reveal').forEach(el=>revealObs.observe(el));
+setTimeout(()=>document.querySelector('.hero').classList.add('visible'),200);
+
+const statObs=new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting)el.target.classList.add('visible')})},{threshold:0.3});
+document.querySelectorAll('.big-stat .number').forEach(el=>statObs.observe(el));
+
+Chart.defaults.color='#888';Chart.defaults.borderColor='rgba(255,255,255,0.06)';Chart.defaults.font.family="-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif";
+
+const stageCtx=document.getElementById('stageChart');let stageChart=null;
+new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting&&!stageChart){stageChart=new Chart(stageCtx,{type:'bar',data:{labels:['Live Framework','Draft','Proposed','No Framework'],datasets:[{data:[79,40,13,70],backgroundColor:['rgba(34,197,94,0.7)','rgba(245,158,11,0.7)','rgba(139,92,246,0.7)','rgba(113,113,122,0.4)'],borderColor:['#22c55e','#f59e0b','#8b5cf6','#71717a'],borderWidth:1,borderRadius:8,barPercentage:0.5}]},options:{indexAxis:'y',responsive:true,aspectRatio:2.2,scales:{x:{ticks:{color:'#71717a'},grid:{color:'rgba(255,255,255,0.04)'}},y:{ticks:{color:'#a1a1aa',font:{size:13,weight:600}},grid:{display:false}}},plugins:{legend:{display:false},tooltip:{backgroundColor:'rgba(10,10,15,0.9)'}},animation:{duration:1500,easing:'easeOutQuart'}}})}})},{threshold:0.2}).observe(stageCtx);
+
+const cbdcCtx=document.getElementById('cbdcChart');let cbdcChart=null;
+new IntersectionObserver(e=>{e.forEach(el=>{if(el.isIntersecting&&!cbdcChart){cbdcChart=new Chart(cbdcCtx,{type:'doughnut',data:{labels:['Launched (3)','Pilot (49)','Development (32)','Research (46)','Cancelled (5)'],datasets:[{data:[3,49,32,46,5],backgroundColor:['rgba(34,197,94,0.8)','rgba(59,130,246,0.8)','rgba(245,158,11,0.7)','rgba(139,92,246,0.6)','rgba(113,113,122,0.4)'],borderColor:'#0a0a0f',borderWidth:3}]},options:{responsive:true,aspectRatio:1.8,cutout:'55%',plugins:{legend:{position:'right',labels:{padding:16,usePointStyle:true,pointStyle:'circle',boxWidth:10,color:'#a1a1aa',font:{size:12}}},tooltip:{backgroundColor:'rgba(10,10,15,0.9)'}},animation:{duration:1500,easing:'easeOutQuart'}}})}})},{threshold:0.2}).observe(cbdcCtx);
+
+document.querySelectorAll('nav a[href^="#"]').forEach(a=>{a.addEventListener('click',e=>{e.preventDefault();const t=document.querySelector(a.getAttribute('href'));if(t)t.scrollIntoView({behavior:'smooth',block:'start'})})});
+</script>
+</body>
+</html>

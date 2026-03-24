@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Speculation Trap — A Visual Investigation</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1"></script>
+<style>
+/* ========== RESET & BASE ========== */
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+body{background:#0a0a0f;color:#d4d4d8;font-family:'Georgia','Times New Roman',serif;line-height:1.7;overflow-x:hidden}
+
+/* ========== TYPOGRAPHY ========== */
+.sans{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif}
+h1,h2,h3,.headline{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',Roboto,sans-serif}
+
+/* ========== SCROLL PROGRESS BAR ========== */
+#progress-bar{position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,#ef4444,#f59e0b,#ef4444);z-index:9999;width:0%;transition:width 0.1s linear}
+
+/* ========== NAVIGATION ========== */
+nav{position:fixed;top:0;left:0;right:0;z-index:999;padding:16px 32px;display:flex;justify-content:space-between;align-items:center;background:rgba(10,10,15,0);transition:background 0.4s,backdrop-filter 0.4s}
+nav.scrolled{background:rgba(10,10,15,0.85);backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,0.06)}
+nav .logo{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;font-family:-apple-system,sans-serif}
+nav .nav-links{display:flex;gap:24px}
+nav .nav-links a{font-size:11px;color:#888;text-decoration:none;letter-spacing:1px;text-transform:uppercase;font-family:-apple-system,sans-serif;transition:color 0.3s}
+nav .nav-links a:hover{color:#fff}
+nav .nav-links a.view-toggle{color:#ef4444;border:1px solid rgba(239,68,68,0.3);padding:4px 12px;border-radius:20px;font-size:10px;transition:all 0.3s}
+nav .nav-links a.view-toggle:hover{background:rgba(239,68,68,0.15);color:#fff}
+
+/* ========== SECTIONS ========== */
+section{min-height:100vh;position:relative;display:flex;align-items:center;justify-content:center}
+
+/* ========== HERO ========== */
+.hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(239,68,68,0.08) 0%,transparent 60%)}
+.hero .overline{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:#ef4444;margin-bottom:24px;font-family:-apple-system,sans-serif;opacity:0;transform:translateY(20px);transition:all 0.8s ease}
+.hero h1{font-size:clamp(40px,7vw,80px);font-weight:800;color:#fff;line-height:1.05;max-width:900px;letter-spacing:-2px;opacity:0;transform:translateY(30px);transition:all 1s ease 0.2s}
+.hero .subtitle{font-size:clamp(16px,2.2vw,22px);color:#a1a1aa;margin-top:24px;max-width:640px;line-height:1.6;opacity:0;transform:translateY(20px);transition:all 0.8s ease 0.5s}
+.hero .scroll-cue{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;opacity:0;transition:all 0.8s ease 1s}
+.hero .scroll-cue span{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#555;font-family:-apple-system,sans-serif}
+.hero .scroll-cue .arrow{width:1px;height:40px;background:linear-gradient(to bottom,#555,transparent);animation:pulse-down 2s infinite}
+@keyframes pulse-down{0%,100%{opacity:0.3;transform:scaleY(0.7)}50%{opacity:1;transform:scaleY(1)}}
+.hero.visible .overline,.hero.visible h1,.hero.visible .subtitle,.hero.visible .scroll-cue{opacity:1;transform:translateY(0) translateX(0)}
+.hero.visible .scroll-cue{transform:translateX(-50%)}
+
+/* ========== CHAPTER HEADERS ========== */
+.chapter-header{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px}
+.chapter-num{font-size:11px;letter-spacing:6px;text-transform:uppercase;color:#ef4444;margin-bottom:16px;font-family:-apple-system,sans-serif}
+.chapter-title{font-size:clamp(32px,5vw,56px);font-weight:700;color:#fff;letter-spacing:-1px;max-width:700px;line-height:1.15}
+.chapter-sub{font-size:18px;color:#71717a;margin-top:16px;max-width:500px}
+
+/* ========== CONTENT BLOCKS ========== */
+.content-block{max-width:680px;margin:0 auto;padding:60px 24px}
+.content-block p{font-size:19px;color:#a1a1aa;margin-bottom:28px;line-height:1.8}
+.content-block p strong{color:#e4e4e7}
+
+/* ========== REVEAL ANIMATIONS ========== */
+.reveal{opacity:0;transform:translateY(40px);transition:all 0.8s cubic-bezier(0.16,1,0.3,1)}
+.reveal.visible{opacity:1;transform:translateY(0)}
+.reveal-delay-1{transition-delay:0.15s}
+.reveal-delay-2{transition-delay:0.3s}
+.reveal-delay-3{transition-delay:0.45s}
+
+/* ========== BIG STATS ========== */
+.big-stat-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;position:relative}
+.big-stat{text-align:center}
+.big-stat .number{font-size:clamp(80px,15vw,180px);font-weight:900;line-height:1;letter-spacing:-4px;font-family:-apple-system,sans-serif;background:linear-gradient(135deg,#ef4444,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;opacity:0;transform:scale(0.8);transition:all 1s cubic-bezier(0.16,1,0.3,1)}
+.big-stat .number.visible{opacity:1;transform:scale(1)}
+.big-stat .label{font-size:clamp(16px,2.5vw,24px);color:#71717a;margin-top:16px;max-width:500px;margin-left:auto;margin-right:auto}
+.big-stat .source{font-size:12px;color:#3f3f46;margin-top:12px;font-family:-apple-system,sans-serif}
+
+/* ========== COMPARISON CARDS ========== */
+.comparison-row{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1100px;margin:0 auto;padding:40px 24px}
+@media(max-width:768px){.comparison-row{grid-template-columns:1fr}}
+.comp-card{background:rgba(26,29,39,0.7);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:32px;text-align:center;backdrop-filter:blur(8px)}
+.comp-card .comp-icon{font-size:36px;margin-bottom:16px}
+.comp-card h3{font-size:16px;font-weight:700;color:#fff;margin-bottom:8px;font-family:-apple-system,sans-serif}
+.comp-card .comp-loss{font-size:48px;font-weight:900;font-family:-apple-system,sans-serif;margin:16px 0}
+.comp-card .comp-loss.red{color:#ef4444}
+.comp-card .comp-loss.amber{color:#f59e0b}
+.comp-card .comp-loss.green{color:#22c55e}
+.comp-card .comp-detail{font-size:14px;color:#71717a;line-height:1.6}
+
+/* ========== CHART SECTIONS ========== */
+.chart-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px}
+.chart-container{max-width:900px;width:100%;margin:0 auto}
+.chart-container h3{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:12px;font-family:-apple-system,sans-serif}
+.chart-container h2{font-size:clamp(24px,3.5vw,36px);font-weight:700;color:#fff;margin-bottom:8px;letter-spacing:-0.5px}
+.chart-container .chart-sub{font-size:15px;color:#71717a;margin-bottom:32px;max-width:600px}
+.chart-wrap{background:rgba(26,29,39,0.5);border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:24px;position:relative}
+.chart-wrap canvas{max-height:420px}
+
+/* ========== STICKY TEXT + CHART ========== */
+.sticky-section{position:relative;display:flex;align-items:flex-start;max-width:1200px;margin:0 auto;padding:0 24px}
+.sticky-chart{position:sticky;top:80px;width:55%;height:calc(100vh - 120px);display:flex;align-items:center;justify-content:center;padding:40px}
+.sticky-steps{width:45%;padding:40px 24px 40px 48px}
+.sticky-step{min-height:60vh;display:flex;align-items:center;padding:40px 0}
+.sticky-step .step-content{opacity:0.2;transition:opacity 0.6s ease}
+.sticky-step.active .step-content{opacity:1}
+.step-num{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#ef4444;color:#fff;font-size:12px;font-weight:700;font-family:-apple-system,sans-serif;margin-bottom:12px}
+.step-content h3{font-size:20px;font-weight:700;color:#fff;margin-bottom:8px;font-family:-apple-system,sans-serif}
+.step-content p{font-size:16px;color:#a1a1aa;line-height:1.7}
+@media(max-width:900px){
+  .sticky-section{flex-direction:column}
+  .sticky-chart{position:relative;width:100%;height:auto;min-height:400px;top:0}
+  .sticky-steps{width:100%}
+}
+
+/* ========== PULLQUOTE ========== */
+.pullquote-section{min-height:60vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;position:relative}
+.pullquote-section::before{content:'';position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,rgba(239,68,68,0.06),transparent 70%)}
+.pullquote{text-align:center;max-width:700px;position:relative}
+.pullquote blockquote{font-size:clamp(22px,3.5vw,34px);color:#e4e4e7;font-style:italic;line-height:1.5;letter-spacing:-0.5px}
+.pullquote cite{display:block;margin-top:20px;font-size:14px;color:#71717a;font-style:normal;font-family:-apple-system,sans-serif}
+
+/* ========== THE LOOP ========== */
+.loop-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px}
+.loop-container{max-width:700px;text-align:center}
+.loop-item{display:flex;align-items:center;justify-content:center;gap:16px;margin:16px 0;font-size:clamp(16px,2.5vw,22px);font-family:-apple-system,sans-serif}
+.loop-arrow{color:#ef4444;font-size:24px;opacity:0;transform:translateY(-10px);transition:all 0.5s ease}
+.loop-text{color:#e4e4e7;font-weight:600;opacity:0;transform:translateX(-20px);transition:all 0.6s ease}
+.loop-item.visible .loop-arrow{opacity:1;transform:translateY(0)}
+.loop-item.visible .loop-text{opacity:1;transform:translateX(0)}
+
+/* ========== CONTRAST SECTION ========== */
+.contrast-section{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:80px 24px;position:relative}
+.contrast-grid{display:grid;grid-template-columns:1fr 1px 1fr;gap:40px;max-width:1000px;align-items:start}
+.contrast-divider{background:linear-gradient(to bottom,transparent,#ef4444,transparent);height:100%;min-height:300px}
+.contrast-side h3{font-size:14px;letter-spacing:3px;text-transform:uppercase;color:#ef4444;margin-bottom:20px;font-family:-apple-system,sans-serif}
+.contrast-side h2{font-size:clamp(28px,4vw,42px);font-weight:800;color:#fff;margin-bottom:20px;font-family:-apple-system,sans-serif;letter-spacing:-1px}
+.contrast-side p{font-size:17px;color:#a1a1aa;line-height:1.7;margin-bottom:16px}
+.contrast-side.right h3{color:#22c55e}
+.contrast-side .contrast-stat{font-size:clamp(36px,6vw,56px);font-weight:900;font-family:-apple-system,sans-serif;margin:16px 0}
+.contrast-side .contrast-stat.red{color:#ef4444}
+.contrast-side .contrast-stat.green{color:#22c55e}
+@media(max-width:768px){
+  .contrast-grid{grid-template-columns:1fr;gap:40px}
+  .contrast-divider{display:none}
+}
+
+/* ========== FINAL CTA ========== */
+.finale{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 24px;position:relative}
+.finale::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 60%,rgba(34,197,94,0.06) 0%,transparent 60%)}
+.finale h2{font-size:clamp(32px,5vw,56px);font-weight:800;color:#fff;letter-spacing:-1px;max-width:700px;line-height:1.15}
+.finale p{font-size:19px;color:#a1a1aa;margin-top:20px;max-width:580px;line-height:1.7}
+.finale .finale-stat{font-size:clamp(48px,8vw,72px);font-weight:900;color:#22c55e;font-family:-apple-system,sans-serif;margin:32px 0 8px}
+.finale .finale-label{font-size:16px;color:#71717a;margin-bottom:32px}
+
+/* ========== FOOTNOTES ========== */
+.footnotes{max-width:680px;margin:0 auto;padding:80px 24px 120px;border-top:1px solid rgba(255,255,255,0.06)}
+.footnotes h3{font-size:14px;letter-spacing:2px;text-transform:uppercase;color:#555;margin-bottom:24px;font-family:-apple-system,sans-serif}
+.footnotes p{font-size:13px;color:#52525b;line-height:1.8;margin-bottom:8px;font-family:-apple-system,sans-serif}
+.footnotes a{color:#71717a;text-decoration:underline;text-decoration-color:#3f3f46}
+</style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<nav>
+  <div class="logo">The Speculation Trap</div>
+  <div class="nav-links">
+    <a href="#despair">Despair</a>
+    <a href="#losses">Losses</a>
+    <a href="#pipeline">Pipeline</a>
+    <a href="#contrast">Contrast</a>
+    <a href="dashboard.html" class="view-toggle">Dashboard View →</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="top">
+  <div class="overline">A Visual Investigation</div>
+  <h1>The Speculation Trap</h1>
+  <div class="subtitle">How economic despair and addictive design are funneling a generation's savings into crypto, sports betting, and prediction markets — with devastating results.</div>
+  <div class="scroll-cue">
+    <span>Scroll to begin</span>
+    <div class="arrow"></div>
+  </div>
+</section>
+
+<!-- ============ CHAPTER 1: ECONOMIC DESPAIR ============ -->
+<section class="chapter-header reveal" id="despair">
+  <div class="chapter-num">Chapter I</div>
+  <div class="chapter-title">The Paths That<br>Closed</div>
+  <div class="chapter-sub">Traditional wealth-building is breaking down for an entire generation.</div>
+</section>
+
+<section class="big-stat-section">
+  <div class="big-stat reveal">
+    <div class="number">5×</div>
+    <div class="label">The ratio of median home price to median income in 2024 — near all-time highs.</div>
+    <div class="source">Harvard Joint Center for Housing Studies</div>
+  </div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">The median age of a first-time homebuyer hit <strong>40 years old</strong> in 2025. In 1981, it was 29. The most fundamental wealth-building tool in American life — homeownership — has moved a full decade further out of reach.</p>
+  <p class="reveal">Meanwhile, <strong>$1.7 trillion</strong> in student debt sits across 42.7 million borrowers. Gen Z carries 13% higher balances than Millennials did at the same age. Their average monthly payment: <strong>$526</strong> — nearly double the national average.</p>
+</div>
+
+<section class="big-stat-section">
+  <div class="big-stat reveal">
+    <div class="number">72%</div>
+    <div class="label">of investors aged 21–43 believe it's no longer possible to build wealth through traditional investing.</div>
+    <div class="source">CNBC, 2025</div>
+  </div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">Economists have a name for this: <strong>financial nihilism</strong>. When the traditional playbook — save, invest in index funds, buy a home — appears broken, people don't stop trying to build wealth. They try riskier paths. A Columbia Business School professor called the shift a "rational response" to deteriorating traditional pathways.</p>
+  <p class="reveal">But the paths they're choosing are anything but rational in their outcomes.</p>
+</div>
+
+<!-- ============ CHAPTER 2: THE LOSSES ============ -->
+<section class="chapter-header reveal" id="losses">
+  <div class="chapter-num">Chapter II</div>
+  <div class="chapter-title">Where the Money<br>Went</div>
+  <div class="chapter-sub">Three industries. One generation. Devastating loss rates.</div>
+</section>
+
+<div class="comparison-row">
+  <div class="comp-card reveal">
+    <div class="comp-icon">₿</div>
+    <h3 class="sans">Crypto Trading</h3>
+    <div class="comp-loss red">73–81%</div>
+    <div class="comp-detail">of retail Bitcoin investors lost money. Median loss: 48% of capital invested.</div>
+    <div class="source" style="font-size:11px;color:#3f3f46;margin-top:12px;font-family:-apple-system,sans-serif">BIS Working Paper, 2022–2023</div>
+  </div>
+  <div class="comp-card reveal reveal-delay-1">
+    <div class="comp-icon">🏈</div>
+    <h3 class="sans">Sports Betting</h3>
+    <div class="comp-loss red">96%</div>
+    <div class="comp-detail">of online gamblers lost money over five years. The house keeps 8–9% of every dollar wagered.</div>
+    <div class="source" style="font-size:11px;color:#3f3f46;margin-top:12px;font-family:-apple-system,sans-serif">UC San Diego, 2025 (717K consumers)</div>
+  </div>
+  <div class="comp-card reveal reveal-delay-2">
+    <div class="comp-icon">📊</div>
+    <h3 class="sans">Prediction Markets</h3>
+    <div class="comp-loss amber">−32%</div>
+    <div class="comp-detail">average loss for "takers" — casual participants betting on events. Sharp traders capture the gains.</div>
+    <div class="source" style="font-size:11px;color:#3f3f46;margin-top:12px;font-family:-apple-system,sans-serif">CEPR (Bürgi, Deng, Whelan), 2026</div>
+  </div>
+</div>
+
+<section class="pullquote-section reveal">
+  <div class="pullquote">
+    <blockquote>"The same young man losing 48% of his capital in crypto could have put that money in a zero-skill S&P 500 index fund and earned 10.4% annually."</blockquote>
+  </div>
+</section>
+
+<!-- ============ WHALE / KRILL ============ -->
+<div class="content-block">
+  <p class="reveal">These aren't random outcomes. The Bank for International Settlements documented the mechanism: large holders — <strong>"whales"</strong> — systematically sold to small retail investors — <strong>"krill"</strong> — before every major crash. During Terra/LUNA and FTX collapses, the wealth transfer was structural and predictable.</p>
+  <p class="reveal">The top 1% of Bitcoin addresses control roughly <strong>58% of all supply</strong>. Approximately 2,000 whale addresses hold 36%. These early holders acquired at $1–$1,000. Retail arrives at $40,000–$90,000. The math is baked in before the first trade executes.</p>
+</div>
+
+<!-- ============ CHAPTER 3: MARKET GROWTH ============ -->
+<section class="chapter-header reveal">
+  <div class="chapter-num">Chapter III</div>
+  <div class="chapter-title">The Explosion</div>
+  <div class="chapter-sub">The speculative markets didn't just grow — they swallowed a generation's savings.</div>
+</section>
+
+<section class="chart-section">
+  <div class="chart-container reveal">
+    <h3>Market Growth 2019–2025</h3>
+    <h2>Indexed Growth (2019 = 100)</h2>
+    <div class="chart-sub">Speculative markets grew orders of magnitude faster than traditional retail investing.</div>
+    <div class="chart-wrap">
+      <canvas id="growthChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<div class="comparison-row" style="grid-template-columns:repeat(4,1fr)">
+  <div class="comp-card reveal">
+    <h3 class="sans" style="font-size:12px;color:#888">Sports Betting</h3>
+    <div class="comp-loss red" style="font-size:36px">12×</div>
+    <div class="comp-detail">$13B → $165B</div>
+  </div>
+  <div class="comp-card reveal reveal-delay-1">
+    <h3 class="sans" style="font-size:12px;color:#888">Prediction Markets</h3>
+    <div class="comp-loss red" style="font-size:36px">440×</div>
+    <div class="comp-detail">$100M → $44B</div>
+  </div>
+  <div class="comp-card reveal reveal-delay-2">
+    <h3 class="sans" style="font-size:12px;color:#888">Crypto Volume</h3>
+    <div class="comp-loss amber" style="font-size:36px">6×</div>
+    <div class="comp-detail">$3T → $18.7T</div>
+  </div>
+  <div class="comp-card reveal reveal-delay-3">
+    <h3 class="sans" style="font-size:12px;color:#888">Retail Stocks</h3>
+    <div class="comp-loss green" style="font-size:36px">6×</div>
+    <div class="comp-detail">$50B → $302B</div>
+  </div>
+</div>
+
+<div class="content-block">
+  <p class="reveal">Northwestern University quantified the substitution directly: when states legalized sports betting, households <strong>increased bets by $1,100/year</strong> while <strong>decreasing traditional investments by 14%</strong>. This isn't diversification — it's displacement.</p>
+  <p class="reveal">The crypto-to-prediction-market pipeline is equally direct. Polymarket runs on Polygon blockchain and settles in USDC. The same wallets, the same risk tolerance, the same demographic — it's adding another table in the same casino.</p>
+</div>
+
+<!-- ============ CHAPTER 4: THE PIPELINE ============ -->
+<section class="chapter-header reveal" id="pipeline">
+  <div class="chapter-num">Chapter IV</div>
+  <div class="chapter-title">The Dopamine<br>Pipeline</div>
+  <div class="chapter-sub">Phone-based childhood primed a generation for exactly this trap.</div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">Jonathan Haidt's <em>The Anxious Generation</em> documents a neurological rewiring: children who grew up with smartphones from age 10–12 developed altered dopamine response systems in the nucleus accumbens and basal ganglia — the same brain regions activated by gambling.</p>
+  <p class="reveal">The mechanism is <strong>variable ratio reinforcement</strong> — the same pattern used in slot machines, social media feeds, and now crypto trading apps. Unpredictable rewards trigger stronger dopamine responses than predictable ones, building tolerance that demands escalation.</p>
+</div>
+
+<section class="big-stat-section">
+  <div class="big-stat reveal">
+    <div class="number" style="font-size:clamp(40px,8vw,100px)">Same<br>Brain</div>
+    <div class="label">The nucleus accumbens responds identically to a TikTok notification, a slot machine jackpot, and a crypto price spike. The pipeline is neurological.</div>
+  </div>
+</section>
+
+<div class="content-block">
+  <p class="reveal">Haidt identifies gendered pathways: girls are funneled toward social comparison anxiety through Instagram and TikTok; boys toward <strong>dopamine-driven compulsive behaviors</strong> — gaming, pornography, and financial speculation. The speculation apps exploit this with leaderboards, social feeds, "BREAKING" news formats, and the illusion that events feel "solvable" with enough research.</p>
+  <p class="reveal">The age thresholds tell the story. You can trade on Polymarket at <strong>18</strong>. Most sportsbooks require <strong>21</strong>. Prediction markets have positioned themselves as the legal on-ramp for risk-seeking young men in states where sports betting is still restricted.</p>
+</div>
+
+<!-- ============ CHAPTER 5: THE LOOP ============ -->
+<section class="chapter-header reveal">
+  <div class="chapter-num">Chapter V</div>
+  <div class="chapter-title">The Vicious Cycle</div>
+  <div class="chapter-sub">A self-reinforcing loop with no exit.</div>
+</section>
+
+<section class="loop-section">
+  <div class="loop-container">
+    <div class="loop-item" data-loop="0"><div class="loop-text" style="font-size:clamp(18px,3vw,26px);color:#ef4444;font-weight:800">Economic Distress</div></div>
+    <div class="loop-item" data-loop="1"><div class="loop-arrow">↓</div><div class="loop-text">Housing unaffordable, student debt, stagnant wages</div></div>
+    <div class="loop-item" data-loop="2"><div class="loop-arrow">↓</div><div class="loop-text" style="color:#f59e0b;font-weight:700">Financial Nihilism</div></div>
+    <div class="loop-item" data-loop="3"><div class="loop-arrow">↓</div><div class="loop-text">"Traditional paths don't work anymore"</div></div>
+    <div class="loop-item" data-loop="4"><div class="loop-arrow">↓</div><div class="loop-text" style="color:#ef4444;font-weight:700">Speculative Substitution</div></div>
+    <div class="loop-item" data-loop="5"><div class="loop-arrow">↓</div><div class="loop-text">Crypto, sports betting, prediction markets</div></div>
+    <div class="loop-item" data-loop="6"><div class="loop-arrow">↓</div><div class="loop-text" style="color:#ef4444;font-weight:700">Losses (73–96%)</div></div>
+    <div class="loop-item" data-loop="7"><div class="loop-arrow">↓</div><div class="loop-text">Depleted savings, possible addiction</div></div>
+    <div class="loop-item" data-loop="8"><div class="loop-arrow">↓</div><div class="loop-text" style="color:#ef4444;font-weight:700">Deeper Nihilism</div></div>
+    <div class="loop-item" data-loop="9"><div class="loop-arrow">↻</div><div class="loop-text" style="color:#71717a;font-style:italic">Cycle repeats</div></div>
+  </div>
+</section>
+
+<!-- ============ CHAPTER 6: THE CONTRAST ============ -->
+<section class="chapter-header reveal" id="contrast">
+  <div class="chapter-num">Chapter VI</div>
+  <div class="chapter-title">The Road<br>Not Taken</div>
+  <div class="chapter-sub">The alternative was always there — boring, unglamorous, and spectacularly effective.</div>
+</section>
+
+<section class="contrast-section">
+  <div class="contrast-grid reveal">
+    <div class="contrast-side">
+      <h3>The Speculation Path</h3>
+      <div class="contrast-stat red">−48%</div>
+      <p>Median crypto investor outcome (BIS). Wiped out in months. Platform design ensures behavioral wealth transfer from retail to whales.</p>
+      <p style="font-size:14px;color:#52525b;margin-top:16px">$10,000 invested → ~$5,200 remaining</p>
+    </div>
+    <div class="contrast-divider"></div>
+    <div class="contrast-side right">
+      <h3>The Index Fund Path</h3>
+      <div class="contrast-stat green">+10.4%</div>
+      <p>Average annual S&P 500 return since 1957. Requires zero skill, zero active decisions. Never negative over any 20-year period.</p>
+      <p style="font-size:14px;color:#52525b;margin-top:16px">$10,000 invested (30 years) → $190,000+</p>
+    </div>
+  </div>
+</section>
+
+<section class="chart-section">
+  <div class="chart-container reveal">
+    <h3>Outcome Comparison</h3>
+    <h2>$10,000 Over Time — Two Paths</h2>
+    <div class="chart-sub">The same starting capital. Radically different destinations.</div>
+    <div class="chart-wrap">
+      <canvas id="pathsChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WINNER CONCENTRATION ============ -->
+<section class="chart-section">
+  <div class="chart-container reveal">
+    <h3>Winner Concentration</h3>
+    <h2>Who Actually Profits</h2>
+    <div class="chart-sub">Across all three categories, a tiny minority captures nearly all gains.</div>
+    <div class="chart-wrap">
+      <canvas id="concentrationChart"></canvas>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CONVERGENCE ============ -->
+<div class="content-block">
+  <p class="reveal">All three speculative categories converge toward zero for casual participants — through different mechanisms. Sports betting compounds a mathematical house edge of 8–9% on every bet. Prediction markets extract spreads on every resolved event. Crypto operates through behavioral wealth transfer: platform design ensures retail buys high and sells low, transferring capital to large holders.</p>
+  <p class="reveal">The cruelest irony: crypto <em>could</em> be positive-sum for a buy-and-hold investor. But the platforms are designed to generate trading activity — fees, volatility alerts, social feeds — ensuring most users interact with it in ways that guarantee losses.</p>
+</div>
+
+<!-- ============ FINALE ============ -->
+<section class="finale reveal">
+  <h2>The House Always Wins</h2>
+  <p>Sportsbooks keep 8–9% of every dollar. Crypto exchanges earn fees on every trade. Prediction markets earn spreads on every contract. The platforms profit at every step — funded by the generation that can least afford to lose.</p>
+  <div class="finale-stat">$190K</div>
+  <div class="finale-label">What $10,000 becomes in 30 years in a zero-skill index fund.</div>
+  <p style="font-size:16px;color:#52525b;margin-top:32px">Available on the same Robinhood app as the crypto trades and sports bets.<br>The boring option was always the best one.</p>
+</section>
+
+<!-- ============ FOOTNOTES ============ -->
+<div class="footnotes">
+  <h3>Sources & Methodology</h3>
+  <p><strong>Crypto losses:</strong> BIS Bulletin No. 69 (2023), BIS Working Paper 1049 (2022) — central bank research using app download data across millions of users.</p>
+  <p><strong>Sports betting:</strong> UC San Diego (2025) — 717,000 consumers tracked over 5 years via credit card data.</p>
+  <p><strong>Prediction markets:</strong> CEPR (Bürgi, Deng, Whelan, 2026) — 300,000+ contracts analyzed.</p>
+  <p><strong>Housing data:</strong> Harvard JCHS, NAHB (2025), NAR.</p>
+  <p><strong>Financial nihilism:</strong> CNBC (2025), NerdWallet (2024).</p>
+  <p><strong>Investment displacement:</strong> Northwestern University (Scott Baker, 2024).</p>
+  <p><strong>S&P 500 returns:</strong> Macrotrends.net historical data.</p>
+  <p><strong>Market growth:</strong> AGA (sports betting), CoinGecko/CCData (crypto), Polymarket/Kalshi reports, JPMorgan/Vanda Research (retail stocks).</p>
+  <p><strong>Neurological priming:</strong> Jonathan Haidt, <em>The Anxious Generation</em> (2024).</p>
+  <p style="margin-top:24px;color:#3f3f46">Confidence levels, full citations, and methodological notes available in the companion research report.</p>
+</div>
+
+<script>
+// ========== SCROLL PROGRESS BAR ==========
+const progressBar = document.getElementById('progress-bar');
+function updateProgress() {
+  const h = document.documentElement.scrollHeight - window.innerHeight;
+  const pct = (window.scrollY / h) * 100;
+  progressBar.style.width = pct + '%';
+}
+
+// ========== NAV BACKGROUND ==========
+const nav = document.querySelector('nav');
+function updateNav() {
+  nav.classList.toggle('scrolled', window.scrollY > 60);
+}
+
+// ========== INTERSECTION OBSERVER FOR REVEALS ==========
+const revealObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+
+document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+
+// ========== HERO ANIMATION ==========
+const hero = document.querySelector('.hero');
+setTimeout(() => hero.classList.add('visible'), 200);
+
+// ========== BIG STAT COUNTER ANIMATION ==========
+const statObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('.big-stat .number').forEach(el => statObserver.observe(el));
+
+// ========== LOOP ITEMS STAGGERED REVEAL ==========
+const loopObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const idx = parseInt(e.target.dataset.loop);
+      setTimeout(() => e.target.classList.add('visible'), idx * 200);
+    }
+  });
+}, { threshold: 0.3 });
+
+document.querySelectorAll('.loop-item').forEach(el => loopObserver.observe(el));
+
+// ========== SCROLL EVENTS ==========
+window.addEventListener('scroll', () => {
+  updateProgress();
+  updateNav();
+}, { passive: true });
+
+// ========== CHARTS ==========
+const chartDefaults = {
+  color: '#888',
+  borderColor: 'rgba(255,255,255,0.06)',
+};
+Chart.defaults.color = '#888';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+
+// --- GROWTH CHART ---
+const growthCtx = document.getElementById('growthChart');
+let growthChartInstance = null;
+const growthObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !growthChartInstance) {
+      growthChartInstance = new Chart(growthCtx, {
+        type: 'line',
+        data: {
+          labels: ['2019','2020','2021','2022','2023','2024','2025'],
+          datasets: [
+            {
+              label: 'Prediction Markets',
+              data: [100, 300, 500, 1000, 3500, 11000, 44000],
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              borderWidth: 2.5,
+              pointRadius: 4,
+              pointBackgroundColor: '#ef4444',
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Sports Betting',
+              data: [100, 165, 405, 717, 932, 1154, 1269],
+              borderColor: '#f59e0b',
+              backgroundColor: 'rgba(245,158,11,0.05)',
+              borderWidth: 2.5,
+              pointRadius: 4,
+              pointBackgroundColor: '#f59e0b',
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Crypto Volume',
+              data: [100, 167, 467, 267, 333, 613, 623],
+              borderColor: '#8b5cf6',
+              backgroundColor: 'rgba(139,92,246,0.05)',
+              borderWidth: 2.5,
+              pointRadius: 4,
+              pointBackgroundColor: '#8b5cf6',
+              fill: true,
+              tension: 0.3
+            },
+            {
+              label: 'Retail Stock Inflows',
+              data: [100, 200, 360, 200, 260, 394, 604],
+              borderColor: '#22c55e',
+              backgroundColor: 'rgba(34,197,94,0.05)',
+              borderWidth: 2,
+              pointRadius: 4,
+              pointBackgroundColor: '#22c55e',
+              fill: true,
+              tension: 0.3,
+              borderDash: [6,3]
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          aspectRatio: 2,
+          scales: {
+            y: {
+              type: 'logarithmic',
+              title: { display: true, text: 'Indexed (2019 = 100, log scale)', color: '#71717a', font: { size: 11 } },
+              ticks: { color: '#71717a', callback: v => v.toLocaleString() },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            x: {
+              ticks: { color: '#71717a' },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, color: '#a1a1aa' } },
+            tooltip: { backgroundColor: 'rgba(10,10,15,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, padding: 12, titleColor: '#fff', bodyColor: '#a1a1aa' }
+          },
+          animation: { duration: 1500, easing: 'easeOutQuart' }
+        }
+      });
+    }
+  });
+}, { threshold: 0.2 });
+growthObserver.observe(growthCtx);
+
+// --- TWO PATHS CHART ---
+const pathsCtx = document.getElementById('pathsChart');
+let pathsChartInstance = null;
+const pathsObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !pathsChartInstance) {
+      const years = [];
+      const indexVals = [];
+      const cryptoVals = [];
+      let idx = 10000, cry = 10000;
+      for (let y = 0; y <= 30; y++) {
+        years.push('Year ' + y);
+        indexVals.push(Math.round(idx));
+        // Crypto: simulate median outcome — rapid loss then flatline
+        if (y <= 2) cry = 10000 * Math.pow(0.52, y/2);
+        else cry = cry * 0.92;
+        cryptoVals.push(Math.round(Math.max(cry, 200)));
+        idx *= 1.104;
+      }
+      pathsChartInstance = new Chart(pathsCtx, {
+        type: 'line',
+        data: {
+          labels: years,
+          datasets: [
+            {
+              label: 'S&P 500 Index Fund',
+              data: indexVals,
+              borderColor: '#22c55e',
+              backgroundColor: 'rgba(34,197,94,0.1)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHoverRadius: 5
+            },
+            {
+              label: 'Median Crypto Trader (BIS)',
+              data: cryptoVals,
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239,68,68,0.1)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHoverRadius: 5
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          aspectRatio: 2,
+          scales: {
+            y: {
+              title: { display: true, text: 'Portfolio Value ($)', color: '#71717a', font: { size: 11 } },
+              ticks: { color: '#71717a', callback: v => '$' + (v/1000).toFixed(0) + 'K' },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            x: {
+              ticks: { color: '#71717a', maxTicksLimit: 7 },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle', boxWidth: 8, color: '#a1a1aa' } },
+            tooltip: { backgroundColor: 'rgba(10,10,15,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1, callbacks: { label: ctx => ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString() } }
+          },
+          animation: { duration: 2000, easing: 'easeOutQuart' }
+        }
+      });
+    }
+  });
+}, { threshold: 0.2 });
+pathsObserver.observe(pathsCtx);
+
+// --- CONCENTRATION CHART ---
+const concCtx = document.getElementById('concentrationChart');
+let concChartInstance = null;
+const concObserver = new IntersectionObserver((entries) => {
+  entries.forEach(e => {
+    if (e.isIntersecting && !concChartInstance) {
+      concChartInstance = new Chart(concCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Daily Fantasy Sports\n(2015)', 'Crypto\n(BIS Whale/Krill)', 'Prediction Markets\n(Sharp Traders)', 'S&P 500\n(Index Fund)'],
+          datasets: [
+            {
+              label: 'Top Winners\' Share of Total Gains',
+              data: [91, 82, 75, 0],
+              backgroundColor: ['rgba(239,68,68,0.8)', 'rgba(239,68,68,0.65)', 'rgba(245,158,11,0.7)', 'rgba(34,197,94,0)'],
+              borderColor: ['#ef4444','#ef4444','#f59e0b','#22c55e'],
+              borderWidth: 1,
+              borderRadius: 6,
+              barPercentage: 0.6
+            },
+            {
+              label: 'Everyone Else\'s Share',
+              data: [9, 18, 25, 100],
+              backgroundColor: ['rgba(239,68,68,0.15)', 'rgba(239,68,68,0.1)', 'rgba(245,158,11,0.1)', 'rgba(34,197,94,0.6)'],
+              borderColor: ['#ef4444','#ef4444','#f59e0b','#22c55e'],
+              borderWidth: 1,
+              borderRadius: 6,
+              barPercentage: 0.6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          aspectRatio: 2,
+          scales: {
+            y: {
+              stacked: true,
+              max: 100,
+              title: { display: true, text: '% of Total Gains', color: '#71717a', font: { size: 11 } },
+              ticks: { color: '#71717a', callback: v => v + '%' },
+              grid: { color: 'rgba(255,255,255,0.04)' }
+            },
+            x: {
+              stacked: true,
+              ticks: { color: '#a1a1aa', font: { size: 11 } },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: { position: 'top', labels: { padding: 20, usePointStyle: true, pointStyle: 'rect', boxWidth: 12, color: '#a1a1aa' } },
+            tooltip: { backgroundColor: 'rgba(10,10,15,0.9)', borderColor: 'rgba(255,255,255,0.1)', borderWidth: 1 }
+          },
+          animation: { duration: 1500, easing: 'easeOutQuart' }
+        }
+      });
+    }
+  });
+}, { threshold: 0.2 });
+concObserver.observe(concCtx);
+
+// ========== SMOOTH SCROLL FOR NAV LINKS ==========
+document.querySelectorAll('nav a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+</script>
+
+</body>
+</html>
